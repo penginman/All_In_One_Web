@@ -47,23 +47,23 @@ function BookmarkModal({ isOpen, onClose, bookmark, groupId }: BookmarkModalProp
     
     setIsLoadingFavicon(true)
     try {
-      // 获取网站标题
+      // 如果没有标题，尝试从URL生成一个简单的标题
       if (!formData.title) {
         try {
-          const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`)
-          const data = await response.json()
-          const parser = new DOMParser()
-          const doc = parser.parseFromString(data.contents, 'text/html')
-          const title = doc.querySelector('title')?.textContent
-          if (title) {
-            setFormData(prev => ({ ...prev, title: title.trim() }))
-          }
+          const urlObj = new URL(url)
+          const hostname = urlObj.hostname.replace('www.', '')
+          const suggestedTitle = hostname.split('.')[0] || '新书签'
+          setFormData(prev => ({ 
+            ...prev, 
+            title: suggestedTitle.charAt(0).toUpperCase() + suggestedTitle.slice(1) 
+          }))
         } catch (error) {
-          console.error('Failed to fetch title:', error)
+          console.error('Failed to parse URL for title:', error)
+          setFormData(prev => ({ ...prev, title: '新书签' }))
         }
       }
     } catch (error) {
-      console.error('Failed to fetch favicon:', error)
+      console.error('Failed to fetch title:', error)
     } finally {
       setIsLoadingFavicon(false)
     }

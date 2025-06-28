@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { 
   CloudIcon, 
   Cog6ToothIcon, 
@@ -9,57 +9,66 @@ import {
   EyeSlashIcon,
   TrashIcon,
   DocumentTextIcon,
-  ServerIcon
+  CodeBracketIcon,
+  ShieldCheckIcon,
+  LinkIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  GlobeAltIcon,
+  PaintBrushIcon
 } from '@heroicons/react/24/outline'
 import { useAppContext } from '../../context/AppContext'
-import { webdavClient, WebDAVFile } from '../../utils/webdav'
+import { gitSyncClient, GitFile } from '../../utils/gitSync'
 
 function Settings() {
-  const { state, dispatch, syncToCloud, syncFromCloud, testWebDAVConnection } = useAppContext()
+  const { state, dispatch, syncToCloud, syncFromCloud, testGitConnection } = useAppContext()
   const [formData, setFormData] = useState({
-    server: '',
-    username: '',
-    password: ''
+    provider: 'github' as 'github' | 'gitee',
+    token: '',
+    owner: '',
+    repo: '',
+    branch: 'main'
   })
-  const [showPassword, setShowPassword] = useState(false)
+  const [showToken, setShowToken] = useState(false)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
-  const [cloudFiles, setCloudFiles] = useState<WebDAVFile[]>([])
+  const [cloudFiles, setCloudFiles] = useState<GitFile[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string>('')
   const [showFileViewer, setShowFileViewer] = useState(false)
-  const [showCorsHelp, setShowCorsHelp] = useState(false)
-  const [connectionMethod, setConnectionMethod] = useState<string>('')
+  const [showTokenConfig, setShowTokenConfig] = useState(false)
+  
+  // 使用 useRef 来跟踪初始化状态，避免 state 变化触发重新渲染
+  const initializedRef = useRef(false)
 
   // 初始化表单数据
   useEffect(() => {
-    if (state.webdavConfig) {
+    if (state.gitConfig) {
       setFormData({
-        server: state.webdavConfig.server,
-        username: state.webdavConfig.username,
-        password: state.webdavConfig.password
+        provider: state.gitConfig.provider,
+        token: state.gitConfig.token,
+        owner: state.gitConfig.owner,
+        repo: state.gitConfig.repo,
+        branch: state.gitConfig.branch || 'main'
       })
     }
-  }, [state.webdavConfig])
+  }, [state.gitConfig])
 
-  // 加载云端文件列表
-  const loadCloudFiles = async () => {
-    if (!state.webdavConnected) {
-      console.log('WebDAV not connected, skipping file load')
-      return
-    }
-
+  // 加载云端文件列表 - 移除 isLoadingFiles 依赖
+  const loadCloudFiles = useCallback(async () => {
+    if (isLoadingFiles) return // 防止重复调用
+    
     setIsLoadingFiles(true)
     try {
       console.log('Loading cloud files...')
-      const files = await webdavClient.listFiles()
+      const files = await gitSyncClient.listFiles()
       console.log('Loaded files:', files)
       setCloudFiles(files)
       
       if (files.length === 0) {
         dispatch({ 
           type: 'SET_SYNC_STATUS', 
-          payload: { status: 'idle', message: '云端暂无文件' } 
+          payload: { status: 'idle', message: '仓库中暂无文件' } 
         })
       }
     } catch (error) {
@@ -71,64 +80,124 @@ function Settings() {
     } finally {
       setIsLoadingFiles(false)
     }
-  }
+  }, [dispatch]) // 只依赖 dispatch
 
-  // 页面加载时获取文件列表
+  // 页面初始化 - 简化依赖，避免循环
   useEffect(() => {
-    if (state.webdavConnected) {
+    // 使用 ref 来避免重复初始化
+    if (initializedRef.current) return
+    
+    const initializeSettings = async () => {
+      initializedRef.current = true
+      
+      if (state.gitConfig && state.gitConnected) {
+        console.log('Initializing settings page with existing connection...')
+        await loadCloudFiles()
+      } else if (state.gitConfig) {
+        console.log('Auto testing Git connection on page load...')
+        setIsTestingConnection(true)
+        
+        try {
+          const result = await testGitConnection()
+          if (result.success) {
+            await loadCloudFiles()
+          }
+        } catch (error) {
+          console.error('Auto test connection failed:', error)
+        } finally {
+          setIsTestingConnection(false)
+        }
+      }
+    }
+
+    initializeSettings()
+  }, []) // 空依赖数组，只在组件挂载时执行
+
+  // 监听连接状态变化，自动加载文件
+  useEffect(() => {
+    if (state.gitConnected && initializedRef.current) {
       loadCloudFiles()
     }
-  }, [state.webdavConnected])
+  }, [state.gitConnected, loadCloudFiles])
 
   const handleSaveConfig = () => {
-    if (!formData.server || !formData.username || !formData.password) {
-      alert('请填写完整的WebDAV配置信息')
+    if (!formData.provider || !formData.token || !formData.owner || !formData.repo) {
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'error', message: '请填写完整的Git同步配置信息' } 
+      })
       return
     }
 
-    // 简单的URL处理
-    let server = formData.server.trim()
-    
-    // 如果没有协议，默认添加https://
-    if (!server.match(/^https?:\/\//)) {
-      server = 'https://' + server
-    }
-
     const config = {
-      server,
-      username: formData.username.trim(),
-      password: formData.password
+      provider: formData.provider,
+      token: formData.token.trim(),
+      owner: formData.owner.trim(),
+      repo: formData.repo.trim(),
+      branch: formData.branch.trim() || 'main'
     }
 
-    console.log('Saving WebDAV config:', { ...config, password: '***' }) // 调试日志（隐藏密码）
+    console.log('Saving Git config:', { ...config, token: '***' })
 
-    webdavClient.saveConfig(config)
-    dispatch({ type: 'SET_WEBDAV_CONFIG', payload: config })
-    
-    // 自动测试连接
-    handleTestConnection()
+    try {
+      gitSyncClient.saveConfig(config)
+      dispatch({ type: 'SET_GIT_CONFIG', payload: config })
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'success', message: '配置已保存' } 
+      })
+      
+      // 保存后自动测试连接
+      handleTestConnection()
+
+    } catch (error: any) {
+      console.error('Save config error:', error)
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'error', message: '保存配置失败' } 
+      })
+    }
   }
 
   const handleTestConnection = async () => {
+    if (isTestingConnection) return // 防止重复测试
+    
     setIsTestingConnection(true)
-    const result = await testWebDAVConnection()
+    dispatch({ 
+      type: 'SET_SYNC_STATUS', 
+      payload: { status: 'syncing', message: '测试连接中...' } 
+    })
     
-    // 提取连接方式信息
-    if (result.success && result.message.includes('(')) {
-      const method = result.message.match(/\(([^)]+)\)/)?.[1] || ''
-      setConnectionMethod(method)
+    try {
+      const result = await testGitConnection()
+      
+      if (result.success) {
+        await loadCloudFiles()
+      }
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'error', message: '测试连接失败' } 
+      })
+    } finally {
+      setIsTestingConnection(false)
     }
-    
-    setIsTestingConnection(false)
   }
 
   const handleClearConfig = () => {
-    if (window.confirm('确定要清除WebDAV配置吗？')) {
-      webdavClient.clearConfig()
-      dispatch({ type: 'SET_WEBDAV_CONFIG', payload: null })
-      dispatch({ type: 'SET_WEBDAV_CONNECTED', payload: false })
-      setFormData({ server: '', username: '', password: '' })
+    if (window.confirm('确定要清除Git同步配置吗？')) {
+      gitSyncClient.clearConfig()
+      dispatch({ type: 'SET_GIT_CONFIG', payload: null })
+      dispatch({ type: 'SET_GIT_CONNECTED', payload: false })
+      setFormData({ 
+        provider: 'github', 
+        token: '', 
+        owner: '', 
+        repo: '', 
+        branch: 'main' 
+      })
       setCloudFiles([])
+      initializedRef.current = false // 重置初始化状态
     }
   }
 
@@ -136,7 +205,7 @@ function Settings() {
     if (!window.confirm(`确定要删除文件 ${fileName} 吗？`)) return
 
     try {
-      const success = await webdavClient.deleteFile(fileName)
+      const success = await gitSyncClient.deleteFile(fileName, `删除文件 ${fileName}`)
       if (success) {
         setCloudFiles(files => files.filter(f => f.name !== fileName))
         dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'success', message: '文件删除成功' } })
@@ -150,16 +219,23 @@ function Settings() {
 
   const handleViewFile = async (fileName: string) => {
     try {
-      const content = await webdavClient.downloadFile(fileName)
-      if (content) {
+      const fileInfo = await gitSyncClient.getFileContent(fileName)
+      if (fileInfo) {
         setSelectedFile(fileName)
-        setFileContent(content)
+        setFileContent(fileInfo.content)
         setShowFileViewer(true)
       } else {
         dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message: '文件下载失败' } })
       }
     } catch (error) {
       dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message: '查看文件时出错' } })
+    }
+  }
+
+  // 手动刷新文件列表
+  const handleRefreshFiles = () => {
+    if (!isLoadingFiles && state.gitConnected) {
+      loadCloudFiles()
     }
   }
 
@@ -182,349 +258,366 @@ function Settings() {
   const getSyncStatusIcon = () => {
     switch (state.syncStatus) {
       case 'syncing':
-        return <ArrowPathIcon className="w-5 h-5 text-blue-500 animate-spin" />
+        return <ArrowPathIcon className="w-4 h-4 text-blue-500 animate-spin" />
       case 'success':
-        return <CheckCircleIcon className="w-5 h-5 text-green-500" />
+        return <CheckCircleIcon className="w-4 h-4 text-green-500" />
       case 'error':
-        return <XCircleIcon className="w-5 h-5 text-red-500" />
+        return <XCircleIcon className="w-4 h-4 text-red-500" />
       default:
-        return <CloudIcon className="w-5 h-5 text-gray-500" />
+        return <CloudIcon className="w-4 h-4 text-gray-500" />
     }
   }
 
+  const getProviderInfo = () => {
+    return formData.provider === 'github' ? {
+      name: 'GitHub',
+      tokenUrl: 'https://github.com/settings/tokens',
+      scopes: 'repo (完整仓库权限)',
+      icon: '🐙'
+    } : {
+      name: 'Gitee',
+      tokenUrl: 'https://gitee.com/profile/personal_access_tokens',
+      scopes: 'projects (仓库权限)',
+      icon: '🦄'
+    }
+  }
+
+  const providerInfo = getProviderInfo()
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-gray-900">设置</h1>
-
-      {/* WebDAV 配置卡片 */}
-      <div className="card">
-        <div className="flex items-center space-x-3 mb-6">
-          <ServerIcon className="w-6 h-6 text-blue-500" />
-          <h2 className="text-xl font-semibold text-gray-900">WebDAV 云同步配置</h2>
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* 页面标题 */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">系统设置</h1>
+        <div className="text-sm text-gray-500">
+          配置您的个人偏好和云同步选项
         </div>
+      </div>
 
-        {/* CORS帮助信息 */}
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="flex items-start space-x-2">
-            <div className="w-5 h-5 text-yellow-600 mt-0.5">⚠️</div>
-            <div className="flex-1">
-              <h4 className="font-medium text-yellow-800">关于浏览器跨域限制</h4>
-              <p className="text-sm text-yellow-700 mt-1">
-                如果连接失败，可能是浏览器CORS限制。请安装浏览器CORS扩展后重试。
-              </p>
-              <button
-                onClick={() => setShowCorsHelp(!showCorsHelp)}
-                className="text-sm text-yellow-600 hover:text-yellow-800 underline mt-1"
-              >
-                {showCorsHelp ? '收起' : '查看解决方案'}
-              </button>
+      {/* Git 云同步配置卡片 */}
+      <div className="card">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <CodeBracketIcon className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800">Git 云同步</h2>
+              <p className="text-sm text-gray-600">连接您的代码仓库</p>
             </div>
           </div>
           
-          {showCorsHelp && (
-            <div className="mt-3 pl-7 text-sm text-yellow-700 space-y-2">
-              <div>
-                <strong>推荐的浏览器扩展：</strong>
-                <ul className="list-disc list-inside ml-2 space-y-1">
-                  <li>Chrome: "CORS Unblock" 或 "Disable CORS"</li>
-                  <li>Firefox: "CORS Everywhere"</li>
-                  <li>Edge: "CORS Unblock"</li>
-                </ul>
+          {/* 连接状态 */}
+          <div className="flex items-center space-x-2">
+            {state.gitConnected ? (
+              <div className="flex items-center space-x-2 text-green-600">
+                <CheckCircleIcon className="w-5 h-5" />
+                <span className="text-sm font-medium">已连接</span>
               </div>
-              <p className="text-sm">安装并启用扩展后，刷新页面重新测试连接。</p>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center space-x-2 text-red-500">
+                <XCircleIcon className="w-5 h-5" />
+                <span className="text-sm font-medium">未连接</span>
+              </div>
+            )}
+            {isTestingConnection && (
+              <ArrowPathIcon className="w-4 h-4 animate-spin text-blue-600" />
+            )}
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              服务器地址
-            </label>
-            <input
-              type="text"
-              value={formData.server}
-              onChange={(e) => setFormData(prev => ({ ...prev, server: e.target.value }))}
-              placeholder="https://app.koofr.net/dav/Koofr"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              请输入完整的WebDAV地址，包括协议和路径
-            </p>
+        {/* 连接状态详情 */}
+        {state.gitConnected && (
+          <div className="mb-4 text-xs text-gray-500 bg-green-50 p-2 rounded border border-green-200">
+            云同步服务正常运行
           </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          {/* 快速配置 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                用户名
-              </label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                placeholder="用户名"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">服务商</label>
+              <select
+                value={formData.provider}
+                onChange={(e) => setFormData(prev => ({ ...prev, provider: e.target.value as 'github' | 'gitee' }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+              >
+                <option value="github">🐙 GitHub</option>
+                <option value="gitee">🦄 Gitee</option>
+              </select>
             </div>
-
+            
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                密码
-              </label>
-              <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">仓库地址</label>
+              <div className="flex space-x-2">
                 <input
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="密码"
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  type="text"
+                  value={formData.owner}
+                  onChange={(e) => setFormData(prev => ({ ...prev, owner: e.target.value }))}
+                  placeholder="用户名"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                </button>
+                <span className="text-gray-400 py-2">/</span>
+                <input
+                  type="text"
+                  value={formData.repo}
+                  onChange={(e) => setFormData(prev => ({ ...prev, repo: e.target.value }))}
+                  placeholder="仓库名"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                />
               </div>
             </div>
           </div>
 
-          <div className="flex space-x-3">
+          {/* Token配置折叠区域 */}
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setShowTokenConfig(!showTokenConfig)}
+              className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center space-x-2">
+                <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+                <span className="font-medium text-gray-900">访问令牌配置</span>
+              </div>
+              {showTokenConfig ? (
+                <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+              ) : (
+                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+              )}
+            </button>
+            
+            {showTokenConfig && (
+              <div className="px-3 pb-3 border-t border-gray-200">
+                <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                  <p className="text-sm text-blue-700 mb-2">
+                    需要在 <a href={providerInfo.tokenUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium">{providerInfo.name}</a> 创建Token
+                  </p>
+                  <p className="text-xs text-blue-600">权限要求: {providerInfo.scopes}</p>
+                </div>
+                
+                <div className="relative">
+                  <input
+                    type={showToken ? "text" : "password"}
+                    value={formData.token}
+                    onChange={(e) => setFormData(prev => ({ ...prev, token: e.target.value }))}
+                    placeholder={`输入${providerInfo.name} Personal Access Token`}
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                  >
+                    {showToken ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSaveConfig}
-              className="btn-primary"
+              className="btn-primary px-4 py-2 text-sm"
             >
               保存配置
             </button>
             <button
               onClick={handleTestConnection}
-              disabled={isTestingConnection || !formData.server}
-              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isTestingConnection || !formData.token || !formData.owner || !formData.repo}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               {isTestingConnection ? '测试中...' : '测试连接'}
             </button>
-            {state.webdavConfig && (
+            {state.gitConfig && (
               <button
                 onClick={handleClearConfig}
-                className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                className="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg font-medium hover:bg-red-50 transition-all duration-200"
               >
                 清除配置
               </button>
             )}
           </div>
 
-          {/* 连接状态 */}
-          <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-            {state.webdavConnected ? (
-              <CheckCircleIcon className="w-5 h-5 text-green-500" />
-            ) : (
-              <XCircleIcon className="w-5 h-5 text-red-500" />
-            )}
-            <span className={`text-sm font-medium ${
-              state.webdavConnected ? 'text-green-700' : 'text-red-700'
+          {/* 状态消息 */}
+          {state.syncMessage && (
+            <div className={`flex items-center space-x-2 p-2 rounded-lg text-sm ${
+              state.syncStatus === 'success' ? 'bg-green-50 text-green-700' :
+              state.syncStatus === 'error' ? 'bg-red-50 text-red-700' :
+              'bg-blue-50 text-blue-700'
             }`}>
-              {state.webdavConnected ? '已连接' : '未连接'}
-            </span>
-            {state.syncMessage && (
-              <span className="text-sm text-gray-600">- {state.syncMessage}</span>
-            )}
-          </div>
+              {getSyncStatusIcon()}
+              <span>{state.syncMessage}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 同步控制卡片 */}
-      {state.webdavConnected && (
+      {/* 数据同步管理 */}
+      {state.gitConnected && (
         <div className="card">
-          <div className="flex items-center space-x-3 mb-6">
-            <CloudIcon className="w-6 h-6 text-green-500" />
-            <h2 className="text-xl font-semibold text-gray-900">数据同步</h2>
-          </div>
-
-          <div className="space-y-4">
-            {/* 自动同步开关 */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <h3 className="font-medium text-gray-900">自动同步</h3>
-                <p className="text-sm text-gray-600">定期检查云端数据更新</p>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CloudIcon className="w-6 h-6 text-green-600" />
               </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">数据同步</h2>
+                <p className="text-xs text-gray-600">管理云端数据同步</p>
+              </div>
+            </div>
+            
+            {/* 自动同步开关 */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">自动同步</span>
               <button
                 onClick={() => dispatch({ type: 'SET_AUTO_SYNC', payload: !state.autoSync })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  state.autoSync ? 'bg-blue-500' : 'bg-gray-300'
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${
+                  state.autoSync ? 'bg-blue-600' : 'bg-gray-300'
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    state.autoSync ? 'translate-x-6' : 'translate-x-1'
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform duration-200 ${
+                    state.autoSync ? 'translate-x-5' : 'translate-x-1'
                   }`}
                 />
               </button>
             </div>
-
-            {/* 同步按钮和状态 */}
-            <div className="flex items-center justify-between">
-              <div className="flex space-x-3">
-                <button
-                  onClick={syncToCloud}
-                  disabled={state.syncStatus === 'syncing'}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  {getSyncStatusIcon()}
-                  <span>同步到云端</span>
-                </button>
-                <button
-                  onClick={syncFromCloud}
-                  disabled={state.syncStatus === 'syncing'}
-                  className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  <ArrowPathIcon className="w-5 h-5" />
-                  <span>从云端同步</span>
-                </button>
-              </div>
-
-              {state.lastSyncTime && (
-                <div className="text-sm text-gray-600">
-                  上次同步: {formatDate(state.lastSyncTime)}
-                </div>
-              )}
-            </div>
-
-            {/* 同步状态消息 */}
-            {state.syncMessage && (
-              <div className={`p-3 rounded-lg ${
-                state.syncStatus === 'success' ? 'bg-green-50 text-green-700' :
-                state.syncStatus === 'error' ? 'bg-red-50 text-red-700' :
-                'bg-blue-50 text-blue-700'
-              }`}>
-                {state.syncMessage}
-              </div>
-            )}
           </div>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={syncToCloud}
+              disabled={state.syncStatus === 'syncing'}
+              className="flex-1 flex items-center justify-center space-x-2 p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+            >
+              {getSyncStatusIcon()}
+              <span>同步到云端</span>
+            </button>
+            <button
+              onClick={syncFromCloud}
+              disabled={state.syncStatus === 'syncing'}
+              className="flex-1 flex items-center justify-center space-x-2 p-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+            >
+              <ArrowPathIcon className="w-4 h-4" />
+              <span>从云端同步</span>
+            </button>
+          </div>
+
+          {state.lastSyncTime && (
+            <div className="mt-3 text-center text-xs text-gray-500">
+              上次同步: {formatDate(state.lastSyncTime)}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 云端文件管理 */}
-      {state.webdavConnected && (
+      {/* 仓库文件管理 */}
+      {state.gitConnected && (
         <div className="card">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <DocumentTextIcon className="w-6 h-6 text-purple-500" />
-              <h2 className="text-xl font-semibold text-gray-900">云端文件管理</h2>
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <DocumentTextIcon className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-800">仓库文件</h2>
+                <p className="text-xs text-gray-600">查看和管理云端文件</p>
+              </div>
             </div>
             <button
-              onClick={loadCloudFiles}
+              onClick={handleRefreshFiles}
               disabled={isLoadingFiles}
-              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
             >
               <ArrowPathIcon className={`w-4 h-4 ${isLoadingFiles ? 'animate-spin' : ''}`} />
               <span>刷新</span>
             </button>
           </div>
 
-          {/* 调试信息 */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
-              <div>连接状态: {state.webdavConnected ? '已连接' : '未连接'}</div>
-              <div>文件数量: {cloudFiles.length}</div>
-              <div>加载状态: {isLoadingFiles ? '加载中' : '空闲'}</div>
-            </div>
-          )}
-
           {isLoadingFiles ? (
-            <div className="text-center py-8 text-gray-500">
-              <ArrowPathIcon className="w-8 h-8 animate-spin mx-auto mb-2" />
-              加载中...
+            <div className="text-center py-6">
+              <ArrowPathIcon className="w-6 h-6 animate-spin mx-auto mb-2 text-gray-400" />
+              <p className="text-sm text-gray-500">加载中...</p>
             </div>
           ) : cloudFiles.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <DocumentTextIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-              <p>暂无云端文件</p>
-              <p className="text-sm mt-1">执行一次同步后将会看到文件</p>
+            <div className="text-center py-6">
+              <DocumentTextIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm text-gray-500">仓库中暂无文件</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">文件名</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">大小</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900">修改时间</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-900">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cloudFiles.map((file) => (
-                    <tr key={file.name} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-gray-900">
-                        <div className="flex items-center space-x-2">
-                          <DocumentTextIcon className="w-4 h-4 text-blue-500" />
-                          <span>{file.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-gray-600">{formatFileSize(file.size)}</td>
-                      <td className="py-3 px-4 text-gray-600">{formatDate(file.lastModified)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-center space-x-2">
-                          <button
-                            onClick={() => handleViewFile(file.name)}
-                            className="p-1 text-blue-500 hover:bg-blue-50 rounded transition-colors"
-                            title="查看"
-                          >
-                            <EyeIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteFile(file.name)}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="删除"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-2">
+              {cloudFiles.map((file) => (
+                <div key={file.sha} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div className="flex items-center space-x-3 min-w-0 flex-1">
+                    <DocumentTextIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => handleViewFile(file.path)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                      title="查看"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFile(file.path)}
+                      className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                      title="删除"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* 其他设置 */}
+      {/* 应用设置 */}
       <div className="card">
-        <div className="flex items-center space-x-3 mb-6">
-          <Cog6ToothIcon className="w-6 h-6 text-gray-500" />
-          <h2 className="text-xl font-semibold text-gray-900">其他设置</h2>
+        <div className="mb-4 flex items-center space-x-3">
+          <div className="p-2 bg-gray-100 rounded-lg">
+            <Cog6ToothIcon className="w-6 h-6 text-gray-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">应用设置</h2>
+            <p className="text-xs text-gray-600">个性化您的使用体验</p>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          {/* 搜索引擎选择 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h3 className="font-medium text-gray-900">默认搜索引擎</h3>
-              <p className="text-sm text-gray-600">选择首页搜索使用的引擎</p>
+            <div className="flex items-center space-x-2">
+              <GlobeAltIcon className="w-5 h-5 text-green-600" />
+              <span className="text-sm font-medium text-gray-900">搜索引擎</span>
             </div>
             <select
               value={state.searchEngine}
               onChange={(e) => dispatch({ type: 'SET_SEARCH_ENGINE', payload: e.target.value as 'bing' | 'google' })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             >
               <option value="google">Google</option>
               <option value="bing">Bing</option>
             </select>
           </div>
 
-          {/* 主题设置 */}
           <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div>
-              <h3 className="font-medium text-gray-900">界面主题</h3>
-              <p className="text-sm text-gray-600">选择应用的外观主题</p>
+            <div className="flex items-center space-x-2">
+              <PaintBrushIcon className="w-5 h-5 text-purple-600" />
+              <span className="text-sm font-medium text-gray-900">界面主题</span>
             </div>
             <select
               value={state.theme}
               onChange={(e) => dispatch({ type: 'SET_THEME', payload: e.target.value as 'light' | 'dark' })}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
             >
               <option value="light">浅色</option>
               <option value="dark">深色</option>
@@ -536,20 +629,20 @@ function Settings() {
       {/* 文件查看器模态框 */}
       {showFileViewer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
                 查看文件: {selectedFile}
               </h3>
               <button
                 onClick={() => setShowFileViewer(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <XCircleIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             <div className="flex-1 overflow-auto p-4">
-              <pre className="text-xs text-gray-800 whitespace-pre-wrap break-words">
+              <pre className="text-sm text-gray-800 whitespace-pre-wrap break-words bg-gray-50 p-3 rounded-lg">
                 {fileContent}
               </pre>
             </div>
