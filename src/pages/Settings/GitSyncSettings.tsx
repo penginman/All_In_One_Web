@@ -33,9 +33,9 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const [cloudFiles, setCloudFiles] = useState<GitFile[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
-  const [showTokenConfig, setShowTokenConfig] = useState(false)
+  const [showGitConfig, setShowGitConfig] = useState(false) // 改为配置表单的折叠状态
   const [hasAutoTested, setHasAutoTested] = useState(false)
-  const [hasLoadedFiles, setHasLoadedFiles] = useState(false) // 新增状态跟踪
+  const [hasLoadedFiles, setHasLoadedFiles] = useState(false)
 
   // 加载云端文件列表 - 移除有问题的依赖项
   const loadCloudFiles = useCallback(async () => {
@@ -320,219 +320,216 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
   const providerInfo = getProviderInfo()
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Git 云同步配置卡片 */}
+    <div className="space-y-6">
+      {/* Git 云同步主卡片 */}
       <div className="card">
-        <div className="mb-4 flex flex-col space-y-3">
+        {/* 头部 */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 space-y-3 sm:space-y-0">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <CodeBracketIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              <CodeBracketIcon className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="flex-1">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800">Git 云同步</h2>
-              <p className="text-xs sm:text-sm text-gray-600">连接您的代码仓库</p>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">Git 云同步</h2>
+              <p className="text-sm text-gray-600">连接您的代码仓库进行数据同步</p>
             </div>
           </div>
           
-          {/* 连接状态 - 移到下方 */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <span className="text-sm font-medium text-gray-700">连接状态</span>
-            <div className="flex items-center space-x-2">
-              {state.gitConnected ? (
-                <div className="flex items-center space-x-2 text-green-600">
-                  <CheckCircleIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium">已连接</span>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-2 text-red-500">
-                  <XCircleIcon className="w-4 h-4" />
-                  <span className="text-sm font-medium">未连接</span>
-                </div>
-              )}
-              {isTestingConnection && (
-                <ArrowPathIcon className="w-4 h-4 animate-spin text-blue-600" />
-              )}
-            </div>
+          <div className="flex items-center space-x-3">
+            {state.gitConnected ? (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                已连接
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                未连接
+              </span>
+            )}
+            {isTestingConnection && (
+              <ArrowPathIcon className="w-4 h-4 animate-spin text-blue-600" />
+            )}
           </div>
         </div>
 
-        {/* 连接状态详情 */}
-        {state.gitConnected && (
-          <div className="mb-4 text-xs text-gray-500 bg-green-50 p-3 rounded-lg border border-green-200">
-            <div className="flex items-center space-x-2">
-              <CheckCircleIcon className="w-4 h-4 text-green-600" />
-              <span>云同步服务正常运行</span>
-            </div>
+        {/* 配置折叠面板 */}
+        <button
+          onClick={() => setShowGitConfig(!showGitConfig)}
+          className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors mb-4"
+        >
+          <div className="flex items-center space-x-2">
+            <ShieldCheckIcon className="w-4 h-4 text-gray-600" />
+            <span className="font-medium text-gray-900">仓库配置</span>
+            {state.gitConfig && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">已配置</span>
+            )}
           </div>
-        )}
+          {showGitConfig ? (
+            <ChevronUpIcon className="w-4 h-4 text-gray-400" />
+          ) : (
+            <ChevronDownIcon className="w-4 h-4 text-gray-400" />
+          )}
+        </button>
 
-        <div className="space-y-4">
-          {/* 快速配置 - 改为单列布局在小屏幕上 */}
-          <div className="space-y-3 sm:space-y-4">
+        {showGitConfig && (
+          <div className="p-4 border border-gray-200 rounded-lg mb-4 space-y-4">
+            {/* 服务商选择 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">服务商</label>
-              <select
-                value={formData.provider}
-                onChange={(e) => setFormData(prev => ({ ...prev, provider: e.target.value as 'github' | 'gitee' }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-              >
-                <option value="github">🐙 GitHub</option>
-                <option value="gitee">🦄 Gitee</option>
-              </select>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Git 服务商</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['github', 'gitee'] as const).map((provider) => (
+                  <button
+                    key={provider}
+                    onClick={() => setFormData(prev => ({ ...prev, provider }))
+                    }
+                    className={`p-3 border rounded-lg text-left transition-all ${
+                      formData.provider === provider
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{provider === 'github' ? '🐙' : '🦄'}</span>
+                      <div>
+                        <div className="font-medium text-sm">
+                          {provider === 'github' ? 'GitHub' : 'Gitee'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {provider === 'github' ? 'github.com' : 'gitee.com'}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">仓库地址</label>
-              <div className="space-y-2">
+
+            {/* 仓库信息 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">用户名/组织</label>
                 <input
                   type="text"
                   value={formData.owner}
                   onChange={(e) => setFormData(prev => ({ ...prev, owner: e.target.value }))}
-                  placeholder="用户名/组织名"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                  placeholder="用户名"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                 />
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 h-px bg-gray-300"></div>
-                  <span className="text-gray-400 text-sm">/</span>
-                  <div className="flex-1 h-px bg-gray-300"></div>
-                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">仓库名称</label>
                 <input
                   type="text"
                   value={formData.repo}
                   onChange={(e) => setFormData(prev => ({ ...prev, repo: e.target.value }))}
-                  placeholder="仓库名称"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
+                  placeholder="仓库名"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Token配置折叠区域 */}
-          <div className="border border-gray-200 rounded-lg">
-            <button
-              onClick={() => setShowTokenConfig(!showTokenConfig)}
-              className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center space-x-2">
-                <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                <span className="text-sm sm:text-base font-medium text-gray-900">访问令牌配置</span>
+            {/* 访问令牌 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">访问令牌</label>
+              <div className="relative">
+                <input
+                  type={showToken ? "text" : "password"}
+                  value={formData.token}
+                  onChange={(e) => setFormData(prev => ({ ...prev, token: e.target.value }))}
+                  placeholder={`输入${getProviderInfo().name} Personal Access Token`}
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken(!showToken)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                >
+                  {showToken ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                </button>
               </div>
-              {showTokenConfig ? (
-                <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-              ) : (
-                <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-              )}
-            </button>
-            
-            {showTokenConfig && (
-              <div className="px-3 pb-3 border-t border-gray-200 space-y-3">
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-700 mb-2">
-                    需要在 <a href={providerInfo.tokenUrl} target="_blank" rel="noopener noreferrer" className="underline font-medium break-all">{providerInfo.name}</a> 创建Token
-                  </p>
-                  <p className="text-xs text-blue-600">权限要求: {providerInfo.scopes}</p>
-                </div>
-                
-                <div className="relative">
-                  <input
-                    type={showToken ? "text" : "password"}
-                    value={formData.token}
-                    onChange={(e) => setFormData(prev => ({ ...prev, token: e.target.value }))}
-                    placeholder={`输入${providerInfo.name} Personal Access Token`}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    {showToken ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              <p className="mt-1 text-xs text-blue-600">
+                在 <a href={getProviderInfo().tokenUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">{getProviderInfo().name}</a> 创建令牌，权限：{getProviderInfo().scopes}
+              </p>
+            </div>
 
-          {/* 操作按钮 - 改为垂直布局 */}
-          <div className="space-y-2">
-            <button
-              onClick={handleSaveConfig}
-              className="w-full btn-primary px-4 py-3 text-sm font-medium"
-            >
-              保存配置
-            </button>
-            <div className="flex space-x-2">
+            {/* 操作按钮 */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-200">
+              <button
+                onClick={handleSaveConfig}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
+              >
+                保存配置
+              </button>
               <button
                 onClick={handleTestConnection}
                 disabled={isTestingConnection || !formData.token || !formData.owner || !formData.repo}
-                className="flex-1 px-4 py-3 text-sm bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
               >
                 {isTestingConnection ? '测试中...' : '测试连接'}
               </button>
               {state.gitConfig && (
                 <button
                   onClick={handleClearConfig}
-                  className="flex-1 px-4 py-3 text-sm text-red-600 border border-red-300 rounded-lg font-medium hover:bg-red-50 transition-all duration-200"
+                  className="px-4 py-2 text-red-600 border border-red-300 rounded-lg font-medium hover:bg-red-50 transition-colors text-sm"
                 >
-                  清除配置
+                  清除
                 </button>
               )}
             </div>
           </div>
+        )}
 
-          {/* 状态消息 */}
-          {state.syncMessage && (
-            <div className={`flex items-start space-x-2 p-3 rounded-lg text-sm ${
-              state.syncStatus === 'success' ? 'bg-green-50 text-green-700' :
-              state.syncStatus === 'error' ? 'bg-red-50 text-red-700' :
-              'bg-blue-50 text-blue-700'
-            }`}>
-              <div className="flex-shrink-0 mt-0.5">
-                {getSyncStatusIcon()}
-              </div>
-              <span className="break-words">{state.syncMessage}</span>
-            </div>
-          )}
-        </div>
+        {/* 状态消息 */}
+        {state.syncMessage && (
+          <div className={`flex items-start space-x-2 p-3 rounded-lg text-sm ${
+            state.syncStatus === 'success' ? 'bg-green-50 text-green-700' :
+            state.syncStatus === 'error' ? 'bg-red-50 text-red-700' :
+            'bg-blue-50 text-blue-700'
+          }`}>
+            {getSyncStatusIcon()}
+            <span>{state.syncMessage}</span>
+          </div>
+        )}
       </div>
 
-      {/* 数据同步管理 */}
+      {/* 数据同步操作 */}
       {state.gitConnected && (
         <div className="card">
-          <div className="mb-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-green-100 rounded-lg">
-                <CloudIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                <CloudIcon className="w-5 h-5 text-green-600" />
               </div>
-              <div className="flex-1">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-800">数据同步</h2>
-                <p className="text-xs text-gray-600">管理云端数据同步</p>
+              <div>
+                <h3 className="font-semibold text-gray-800">数据同步</h3>
+                <p className="text-sm text-gray-600">管理本地与云端数据</p>
               </div>
             </div>
             
-            {/* 自动同步开关 - 改为独立行 */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">自动同步</span>
+            {/* 自动同步开关 */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-700">自动同步</span>
               <button
                 onClick={() => dispatch({ type: 'SET_AUTO_SYNC', payload: !state.autoSync })}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ${
-                  state.autoSync ? 'bg-blue-600' : 'bg-gray-300'
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  state.autoSync ? 'bg-green-600' : 'bg-gray-300'
                 }`}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
-                    state.autoSync ? 'translate-x-6' : 'translate-x-1'
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                    state.autoSync ? 'translate-x-5' : 'translate-x-1'
                   }`}
                 />
               </button>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={syncToCloud}
               disabled={state.syncStatus === 'syncing'}
-              className="w-full flex items-center justify-center space-x-2 p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+              className="flex items-center justify-center space-x-2 p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               {getSyncStatusIcon()}
               <span>同步到云端</span>
@@ -540,7 +537,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
             <button
               onClick={syncFromCloud}
               disabled={state.syncStatus === 'syncing'}
-              className="w-full flex items-center justify-center space-x-2 p-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+              className="flex items-center justify-center space-x-2 p-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               <ArrowPathIcon className="w-4 h-4" />
               <span>从云端同步</span>
@@ -555,26 +552,27 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
         </div>
       )}
 
-      {/* 仓库文件管理 */}
+      {/* 文件管理 */}
       {state.gitConnected && (
         <div className="card">
-          <div className="mb-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-purple-100 rounded-lg">
-                <DocumentTextIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                <DocumentTextIcon className="w-5 h-5 text-purple-600" />
               </div>
-              <div className="flex-1">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-800">仓库文件</h2>
-                <p className="text-xs text-gray-600">查看和管理云端文件</p>
+              <div>
+                <h3 className="font-semibold text-gray-800">仓库文件</h3>
+                <p className="text-sm text-gray-600">查看和管理云端文件</p>
               </div>
             </div>
+            
             <button
               onClick={handleRefreshFiles}
               disabled={isLoadingFiles}
-              className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-sm text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="flex items-center space-x-2 px-3 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               <ArrowPathIcon className={`w-4 h-4 ${isLoadingFiles ? 'animate-spin' : ''}`} />
-              <span>刷新文件列表</span>
+              <span>刷新</span>
             </button>
           </div>
 
@@ -586,12 +584,13 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
           ) : cloudFiles.length === 0 ? (
             <div className="text-center py-8">
               <DocumentTextIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm text-gray-500">仓库中暂无文件</p>
+              <p className="text-sm text-gray-500 font-medium">仓库中暂无文件</p>
+              <p className="text-xs text-gray-400 mt-1">执行同步操作后文件将显示在这里</p>
             </div>
           ) : (
             <div className="space-y-2">
               {cloudFiles.map((file) => (
-                <div key={file.sha} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div key={file.sha} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group">
                   <div className="flex items-center space-x-3 min-w-0 flex-1">
                     <DocumentTextIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
@@ -599,18 +598,18 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
                       <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-1 flex-shrink-0">
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleViewFile(file.path)}
                       className="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                      title="查看"
+                      title="查看文件"
                     >
                       <EyeIcon className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteFile(file.path)}
                       className="p-2 text-red-600 hover:bg-red-100 rounded transition-colors"
-                      title="删除"
+                      title="删除文件"
                     >
                       <TrashIcon className="w-4 h-4" />
                     </button>
@@ -626,4 +625,3 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
 }
 
 export default GitSyncSettings
-
