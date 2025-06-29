@@ -149,32 +149,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app-sidebarCollapsed', JSON.stringify(state.sidebarCollapsed))
   }, [state.sidebarCollapsed])
 
-  // 自动同步检查
-  useEffect(() => {
-    if (state.gitConnected && state.autoSync) {
-      const checkSync = async () => {
-        try {
-          // 初始化同步系统（如果还没有初始化）
-          await gitSyncClient.initializeSync()
-          
-          // 执行自动同步
-          const result = await gitSyncClient.autoSync()
-          if (result.success) {
-            console.log('Auto sync completed successfully')
-            dispatch({ type: 'SET_LAST_SYNC_TIME', payload: new Date().toISOString() })
-          } else {
-            console.log('Auto sync completed with some errors:', result.results)
-          }
-        } catch (error) {
-          console.error('Auto sync check failed:', error)
-        }
-      }
-
-      // 每5分钟检查一次
-      const interval = setInterval(checkSync, 5 * 60 * 1000)
-      return () => clearInterval(interval)
-    }
-  }, [state.gitConnected, state.autoSync])
 
   const testGitConnection = async () => {
     if (!state.gitConfig) {

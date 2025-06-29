@@ -49,7 +49,7 @@ function Settings() {
         token: state.gitConfig.token,
         owner: state.gitConfig.owner,
         repo: state.gitConfig.repo,
-        branch: state.gitConfig.branch || 'main'
+        branch: (state.gitConfig.provider === 'gitee' ? 'master' : 'main')
       })
     }
   }, [state.gitConfig])
@@ -110,7 +110,7 @@ function Settings() {
       }
     }
 
-    initializeSettings()
+    // initializeSettings()
   }, []) // 空依赖数组，只在组件挂载时执行
 
   // 监听连接状态变化，自动加载文件
