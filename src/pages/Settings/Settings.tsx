@@ -8,6 +8,7 @@ import {
 import { useAppContext } from '../../context/AppContext'
 import GitSyncSettings from './GitSyncSettings'
 
+
 function Settings() {
   const { state, dispatch } = useAppContext()
   const [showFileViewer, setShowFileViewer] = useState(false)
@@ -32,6 +33,7 @@ function Settings() {
 
       {/* Git同步设置 */}
       <GitSyncSettings onFileView={handleFileView} />
+
 
       {/* 应用设置 */}
       <div className="card">

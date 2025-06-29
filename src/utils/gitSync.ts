@@ -89,11 +89,54 @@ class GitSyncClient {
       filename: 'calendar-events.json',
       getData: () => JSON.parse(localStorage.getItem('calendar-events') || '[]'),
       setData: (data) => localStorage.setItem('calendar-events', JSON.stringify(data))
+    },
+    {
+      name: 'appSettings',
+      localStorageKey: 'app-settings',
+      filename: 'app-settings.json',
+      getData: () => {
+        // 确保正确读取 autoSync 设置
+        const autoSyncValue = localStorage.getItem('app-autoSync')
+        let autoSync = true // 默认值
+        
+        if (autoSyncValue !== null) {
+          try {
+            autoSync = JSON.parse(autoSyncValue)
+          } catch (error) {
+            console.warn('Failed to parse autoSync value:', error)
+          }
+        }
+        
+        return {
+          theme: localStorage.getItem('app-theme') || 'light',
+          searchEngine: localStorage.getItem('app-searchEngine') || 'google',
+          autoSync,
+          sidebarCollapsed: JSON.parse(localStorage.getItem('app-sidebarCollapsed') || 'false'),
+          lastSyncTime: localStorage.getItem('app-lastSyncTime') || null
+        }
+      },
+      setData: (data) => {
+        localStorage.setItem('app-theme', data.theme || 'light')
+        localStorage.setItem('app-searchEngine', data.searchEngine || 'google')
+        
+        // 确保 autoSync 正确保存
+        const autoSyncValue = data.autoSync !== undefined ? data.autoSync : true
+        localStorage.setItem('app-autoSync', JSON.stringify(autoSyncValue))
+        
+        localStorage.setItem('app-sidebarCollapsed', JSON.stringify(data.sidebarCollapsed || false))
+        if (data.lastSyncTime) {
+          localStorage.setItem('app-lastSyncTime', data.lastSyncTime)
+        }
+      }
     }
   ]
 
   // 本地哈希缓存，用于检测数据变化
   private localHashCache = new Map<string, string>()
+
+  // 添加请求防抖缓存
+  private requestCache = new Map<string, Promise<any>>()
+  private readonly CACHE_TIMEOUT = 5000 // 5秒缓存
 
   // 加密配置
   encryptConfig(config: GitConfig): string {
@@ -127,11 +170,21 @@ class GitSyncClient {
     return `repos/${this.config.owner}/${this.config.repo}`
   }
 
-  // 发送API请求
+  // 发送API请求 - 添加防抖机制
   private async apiRequest(endpoint: string, options: RequestInit = {}): Promise<Response> {
     if (!this.config) throw new Error('Git sync not configured')
     
     const url = `${this.getApiBase()}/${endpoint}`
+    const cacheKey = `${options.method || 'GET'}-${url}`
+    
+    // 对于读取操作，使用缓存防抖
+    if (!options.method || options.method === 'GET') {
+      if (this.requestCache.has(cacheKey)) {
+        console.log('Using cached request:', cacheKey)
+        return this.requestCache.get(cacheKey)!
+      }
+    }
+    
     const headers: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -143,10 +196,22 @@ class GitSyncClient {
 
     console.log('API Request:', { method: options.method || 'GET', url, headers: { ...headers, Authorization: 'token ***' } })
 
-    return fetch(url, {
+    const requestPromise = fetch(url, {
       ...options,
       headers
     })
+
+    // 缓存GET请求
+    if (!options.method || options.method === 'GET') {
+      this.requestCache.set(cacheKey, requestPromise)
+      
+      // 清理缓存
+      setTimeout(() => {
+        this.requestCache.delete(cacheKey)
+      }, this.CACHE_TIMEOUT)
+    }
+
+    return requestPromise
   }
 
   // 保存配置到本地存储
@@ -196,14 +261,27 @@ class GitSyncClient {
 
   // 检查数据是否有变化
   private hasDataChanged(module: DataModule): boolean {
-    const currentHash = this.getLocalDataHash(module)
-    const cachedHash = this.localHashCache.get(module.name)
-    
-    if (cachedHash !== currentHash) {
-      this.localHashCache.set(module.name, currentHash)
-      return true
+    try {
+      const currentHash = this.getLocalDataHash(module)
+      const cachedHash = this.localHashCache.get(module.name)
+      
+      if (!cachedHash) {
+        // 第一次检查，更新缓存但不认为有变化
+        this.localHashCache.set(module.name, currentHash)
+        return false
+      }
+      
+      if (cachedHash !== currentHash) {
+        console.log(`GitSyncClient: Data changed for module ${module.name}`)
+        this.localHashCache.set(module.name, currentHash)
+        return true
+      }
+      
+      return false
+    } catch (error) {
+      console.error(`GitSyncClient: Error checking data changes for ${module.name}:`, error)
+      return false
     }
-    return false
   }
 
   // 初始化本地哈希缓存
@@ -215,16 +293,42 @@ class GitSyncClient {
 
   // 测试连接和权限
   async testConnection(): Promise<{ success: boolean; message: string }> {
+    console.log('GitSyncClient: testConnection called')
+    console.log('GitSyncClient: Current config state:', {
+      hasConfig: !!this.config,
+      configDetails: this.config ? {
+        provider: this.config.provider,
+        owner: this.config.owner,
+        repo: this.config.repo,
+        hasToken: !!this.config.token,
+        branch: this.config.branch
+      } : 'null'
+    })
+    
     if (!this.config) {
-      return { success: false, message: '请先配置Git同步信息' }
+      console.log('GitSyncClient: No config found, attempting to load from localStorage...')
+      // 尝试重新加载配置
+      const config = this.loadConfig()
+      console.log('GitSyncClient: Loaded config from localStorage:', config ? 'success' : 'failed')
+      
+      if (!config) {
+        return { success: false, message: '请先配置Git同步信息' }
+      }
     }
 
+    console.log('GitSyncClient: Config confirmed, starting connection test...')
+
     try {
+      console.log('GitSyncClient: Testing repository access...')
+      
       // 测试仓库访问权限
       const response = await this.apiRequest(this.getRepoPath())
       
+      console.log('GitSyncClient: Repository response status:', response.status)
+      
       if (response.ok) {
         const repoData = await response.json()
+        console.log('GitSyncClient: Repository data received, checking permissions...')
         
         // 检查是否有写权限 - 兼容GitHub和Gitee的权限结构
         const hasWriteAccess = 
@@ -236,7 +340,8 @@ class GitSyncClient {
           repoData.permissions?.maintain || repoData.permission?.master ||
           false
         
-        console.log('Repository permissions:', repoData.permissions || repoData.permission)
+        console.log('GitSyncClient: Repository permissions:', repoData.permissions || repoData.permission)
+        console.log('GitSyncClient: Has write access:', hasWriteAccess)
         
         if (hasWriteAccess) {
           return { 
@@ -254,9 +359,12 @@ class GitSyncClient {
       } else if (response.status === 404) {
         return { success: false, message: '仓库不存在或无访问权限' }
       } else {
+        const errorText = await response.text()
+        console.error('GitSyncClient: API error:', response.status, errorText)
         return { success: false, message: `连接失败: ${response.status} ${response.statusText}` }
       }
     } catch (error: any) {
+      console.error('GitSyncClient: Connection error:', error)
       return { success: false, message: `连接错误: ${error.message}` }
     }
   }
@@ -576,7 +684,7 @@ private async createFileWithPUT(path: string, content: string, message: string):
     }
   }
 
-  // 列出目录下的文件
+  // 列出目录下的文件 - 添加防重复调用
   async listFiles(path: string = ''): Promise<GitFile[]> {
     try {
       const endpoint = `${this.getRepoPath()}/contents/${path}`
@@ -671,45 +779,134 @@ private async createFileWithPUT(path: string, content: string, message: string):
     }
   }
 
-  // 检查所有模块的同步状态
+  // 检查所有模块的同步状态 - 修复稳定性问题
   async checkSyncStatus(): Promise<SyncStatus[]> {
     const statusList: SyncStatus[] = []
     
-    for (const module of this.dataModules) {
-      try {
-        const filename = `${this.SYNC_PREFIX}${module.filename}`
-        const localHash = this.getLocalDataHash(module)
-        
-        // 获取云端数据
-        const fileInfo = await this.getFileContent(filename)
-        let cloudHash = ''
-        let lastSyncTime: string | undefined
-        
-        if (fileInfo) {
-          const syncData = JSON.parse(fileInfo.content)
-          cloudHash = syncData.hash || ''
-          lastSyncTime = syncData.lastSyncTime
+    // 使用 Promise.allSettled 避免单个模块失败影响其他模块
+    const results = await Promise.allSettled(
+      this.dataModules.map(async (module) => {
+        try {
+          const filename = `${this.SYNC_PREFIX}${module.filename}`
+          const localHash = this.getLocalDataHash(module)
+          
+          // 获取云端数据
+          const fileInfo = await this.getFileContent(filename)
+          let cloudHash = ''
+          let lastSyncTime: string | undefined
+          
+          if (fileInfo) {
+            const syncData = JSON.parse(fileInfo.content)
+            cloudHash = syncData.hash || ''
+            lastSyncTime = syncData.lastSyncTime
+          }
+          
+          return {
+            filename: module.filename,
+            localHash,
+            cloudHash,
+            needsSync: localHash !== cloudHash,
+            lastSyncTime
+          }
+        } catch (error) {
+          console.error(`Check sync status failed for ${module.name}:`, error)
+          return {
+            filename: module.filename,
+            localHash: '',
+            cloudHash: '',
+            needsSync: false
+          }
         }
-        
+      })
+    )
+    
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        statusList.push(result.value)
+      } else {
+        // 失败的情况，添加默认状态
         statusList.push({
-          filename: module.filename,
-          localHash,
-          cloudHash,
-          needsSync: localHash !== cloudHash,
-          lastSyncTime
-        })
-      } catch (error) {
-        console.error(`Check sync status failed for ${module.name}:`, error)
-        statusList.push({
-          filename: module.filename,
+          filename: this.dataModules[index].filename,
           localHash: '',
           cloudHash: '',
           needsSync: false
         })
       }
-    }
+    })
     
     return statusList
+  }
+
+  // 自动同步相关的状态
+  private autoSyncEnabled = false
+  private autoSyncInterval: NodeJS.Timeout | null = null
+  private readonly AUTO_SYNC_INTERVAL = 30000 // 30秒检查一次
+  private lastAutoSyncCheck = 0
+
+  // 启用自动同步
+  enableAutoSync(): void {
+    if (this.autoSyncEnabled || !this.config) return
+    
+    this.autoSyncEnabled = true
+    console.log('GitSyncClient: Auto sync enabled')
+    
+    // 初始化哈希缓存
+    this.initializeHashCache()
+    
+    // 设置定期检查
+    this.autoSyncInterval = setInterval(async () => {
+      await this.checkAndAutoSync()
+    }, this.AUTO_SYNC_INTERVAL)
+  }
+
+  // 禁用自动同步
+  disableAutoSync(): void {
+    if (!this.autoSyncEnabled) return
+    
+    this.autoSyncEnabled = false
+    console.log('GitSyncClient: Auto sync disabled')
+    
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval)
+      this.autoSyncInterval = null
+    }
+  }
+
+  // 检查并执行自动同步
+  private async checkAndAutoSync(): Promise<void> {
+    if (!this.autoSyncEnabled || !this.config) return
+    
+    const now = Date.now()
+    if (now - this.lastAutoSyncCheck < this.AUTO_SYNC_INTERVAL) return
+    
+    this.lastAutoSyncCheck = now
+    
+    try {
+      // 检查是否有本地文件变化
+      const hasChanges = this.dataModules.some(module => this.hasDataChanged(module))
+      
+      if (hasChanges) {
+        console.log('GitSyncClient: Local changes detected, starting auto sync...')
+        await this.autoSync()
+      }
+    } catch (error) {
+      console.error('GitSyncClient: Auto sync check failed:', error)
+    }
+  }
+
+  // 手动触发文件变化检测（供外部调用）
+  triggerChangeDetection(): void {
+    if (this.autoSyncEnabled) {
+      // 重置检查时间，让下次检查立即执行
+      this.lastAutoSyncCheck = 0
+    }
+  }
+
+  // 清理缓存 - 扩展功能
+  clearCache(): void {
+    this.requestCache.clear()
+    this.localHashCache.clear()
+    this.disableAutoSync() // 同时禁用自动同步
   }
 
   // 自动同步所有需要同步的模块
@@ -750,6 +947,28 @@ private async createFileWithPUT(path: string, content: string, message: string):
     }
     
     return { success: allSuccess, results }
+  }
+
+  // 初始化同步系统
+  async initializeSync(): Promise<boolean> {
+    if (!this.config) {
+      // 尝试加载配置
+      const config = this.loadConfig()
+      if (!config) {
+        console.error('GitSyncClient: No config available for sync initialization')
+        return false
+      }
+    }
+    
+    try {
+      // 初始化哈希缓存
+      this.initializeHashCache()
+      console.log('GitSyncClient: Sync system initialized successfully')
+      return true
+    } catch (error) {
+      console.error('GitSyncClient: Initialize sync failed:', error)
+      return false
+    }
   }
 
   // 手动同步所有模块到云端
@@ -822,20 +1041,6 @@ private async createFileWithPUT(path: string, content: string, message: string):
   // 获取所有数据模块名称
   getModuleNames(): string[] {
     return this.dataModules.map(module => module.name)
-  }
-
-  // 初始化同步系统
-  async initializeSync(): Promise<boolean> {
-    if (!this.config) return false
-    
-    try {
-      this.initializeHashCache()
-      console.log('Sync system initialized')
-      return true
-    } catch (error) {
-      console.error('Initialize sync failed:', error)
-      return false
-    }
   }
 
   // 清理云端同步文件

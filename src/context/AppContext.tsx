@@ -29,7 +29,7 @@ const initialState: AppState = {
   searchEngine: 'google',
   gitConfig: null,
   gitConnected: false,
-  autoSync: true,
+  autoSync: false, // 改为 false，避免默认值覆盖用户设置
   lastSyncTime: null,
   syncStatus: 'idle',
   syncMessage: ''
@@ -73,55 +73,98 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
 
-  // 初始化设置
+  // 初始化设置 - 确保只执行一次
   useEffect(() => {
-    const initializeSettings = () => {
-      // 加载Git配置
-      const config = gitSyncClient.loadConfig()
-      if (config) {
-        dispatch({ type: 'SET_GIT_CONFIG', payload: config })
-        
-        // 延迟测试连接
-        setTimeout(() => {
-          testGitConnection().catch(console.error)
-        }, 1000)
-      }
-
-      // 加载其他设置
-      const settings = [
-        { key: 'app-theme', action: 'SET_THEME', values: ['light', 'dark'] },
-        { key: 'app-searchEngine', action: 'SET_SEARCH_ENGINE', values: ['google', 'bing'] },
-        { key: 'app-autoSync', action: 'SET_AUTO_SYNC', parser: JSON.parse },
-        { key: 'app-lastSyncTime', action: 'SET_LAST_SYNC_TIME' },
-        { key: 'app-sidebarCollapsed', action: 'TOGGLE_SIDEBAR', parser: JSON.parse }
-      ]
-
-      settings.forEach(({ key, action, values, parser }) => {
-        const saved = localStorage.getItem(key)
-        if (saved !== null) {
-          let value = parser ? parser(saved) : saved
-          if (values && !values.includes(value)) return
-          
-          dispatch({ type: action as any, payload: value })
-        }
-      })
+    console.log('AppContext: Starting initialization...')
+    
+    // 加载Git配置
+    const config = gitSyncClient.loadConfig()
+    console.log('AppContext: Git config loaded:', config ? 'found' : 'not found')
+    
+    if (config) {
+      dispatch({ type: 'SET_GIT_CONFIG', payload: config })
     }
 
-    initializeSettings()
-  }, []) // 空依赖，只在挂载时执行
-
-  // 自动保存设置
-  useEffect(() => {
-    const settingsToSave = [
-      { key: 'app-theme', value: state.theme },
-      { key: 'app-searchEngine', value: state.searchEngine },
-      { key: 'app-autoSync', value: state.autoSync, stringify: true },
-      { key: 'app-sidebarCollapsed', value: state.sidebarCollapsed, stringify: true }
+    // 加载字符串类型设置
+    const settings = [
+      { key: 'app-theme', action: 'SET_THEME', values: ['light', 'dark'] },
+      { key: 'app-searchEngine', action: 'SET_SEARCH_ENGINE', values: ['google', 'bing'] },
+      { key: 'app-lastSyncTime', action: 'SET_LAST_SYNC_TIME' }
     ]
 
-    settingsToSave.forEach(({ key, value, stringify }) => {
-      localStorage.setItem(key, stringify ? JSON.stringify(value) : value as string)
+    settings.forEach(({ key, action, values }) => {
+      try {
+        const saved = localStorage.getItem(key)
+        if (saved !== null) {
+          if (values && !values.includes(saved)) return
+          dispatch({ type: action as any, payload: saved })
+        }
+      } catch (error) {
+        console.warn(`Failed to load setting ${key}:`, error)
+      }
     })
+
+    // 修复：正确处理 autoSync 设置
+    try {
+      const savedAutoSync = localStorage.getItem('app-autoSync')
+      console.log('AppContext: Raw autoSync value from localStorage:', savedAutoSync)
+      
+      if (savedAutoSync !== null) {
+        const autoSyncValue = JSON.parse(savedAutoSync)
+        console.log('AppContext: Parsed autoSync value:', autoSyncValue)
+        dispatch({ type: 'SET_AUTO_SYNC', payload: autoSyncValue })
+      } else {
+        // 如果没有保存的值，设置默认值为 true（只有第一次使用时）
+        console.log('AppContext: No autoSync setting found, setting default: true')
+        dispatch({ type: 'SET_AUTO_SYNC', payload: true })
+        localStorage.setItem('app-autoSync', JSON.stringify(true)) // 立即保存默认值
+      }
+    } catch (error) {
+      console.warn('Failed to load autoSync setting:', error)
+      // 出错时设置默认值
+      dispatch({ type: 'SET_AUTO_SYNC', payload: true })
+      localStorage.setItem('app-autoSync', JSON.stringify(true))
+    }
+
+    // 处理侧边栏折叠状态
+    try {
+      const savedSidebarCollapsed = localStorage.getItem('app-sidebarCollapsed')
+      if (savedSidebarCollapsed !== null) {
+        const sidebarCollapsed = JSON.parse(savedSidebarCollapsed)
+        if (sidebarCollapsed) {
+          dispatch({ type: 'TOGGLE_SIDEBAR' })
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load sidebar setting:', error)
+    }
+
+    console.log('AppContext: Initialization completed')
+  }, []) // 空依赖数组，只在挂载时执行
+
+  // 自动保存设置 - 避免在初始化时保存
+  useEffect(() => {
+    // 添加一个标记，避免在初始化期间保存设置
+    const isInitializing = state.autoSync === false && 
+                          state.theme === 'light' && 
+                          state.searchEngine === 'google' && 
+                          state.sidebarCollapsed === false
+    
+    if (isInitializing) {
+      console.log('AppContext: Skipping save during initialization')
+      return
+    }
+    
+    console.log('AppContext: Saving settings to localStorage, autoSync:', state.autoSync)
+    
+    try {
+      localStorage.setItem('app-theme', state.theme)
+      localStorage.setItem('app-searchEngine', state.searchEngine)
+      localStorage.setItem('app-autoSync', JSON.stringify(state.autoSync))
+      localStorage.setItem('app-sidebarCollapsed', JSON.stringify(state.sidebarCollapsed))
+    } catch (error) {
+      console.warn('Failed to save settings:', error)
+    }
   }, [state.theme, state.searchEngine, state.autoSync, state.sidebarCollapsed])
 
   useEffect(() => {
@@ -130,25 +173,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [state.lastSyncTime])
 
+  // 监听自动同步设置变化
+  useEffect(() => {
+    if (state.gitConnected) {
+      if (state.autoSync) {
+        gitSyncClient.enableAutoSync()
+      } else {
+        gitSyncClient.disableAutoSync()
+      }
+    }
+  }, [state.autoSync, state.gitConnected])
+
   const testGitConnection = async () => {
+    console.log('AppContext: testGitConnection called with config:', state.gitConfig)
+    
     if (!state.gitConfig) {
-      return { success: false, message: '请先配置Git同步信息' }
+      const message = '请先配置Git同步信息'
+      console.log('AppContext:', message)
+      return { success: false, message }
     }
 
+    console.log('AppContext: Testing git connection...')
     dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'syncing', message: '测试连接中...' } })
     
-    const result = await gitSyncClient.testConnection()
-    
-    dispatch({ type: 'SET_GIT_CONNECTED', payload: result.success })
-    dispatch({ 
-      type: 'SET_SYNC_STATUS', 
-      payload: { 
-        status: result.success ? 'success' : 'error',
-        message: result.message
-      }
-    })
+    try {
+      const result = await gitSyncClient.testConnection()
+      console.log('AppContext: Test connection result:', result)
+      
+      dispatch({ type: 'SET_GIT_CONNECTED', payload: result.success })
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { 
+          status: result.success ? 'success' : 'error',
+          message: result.message
+        }
+      })
 
-    return result
+      return result
+    } catch (error: any) {
+      console.error('AppContext: Test connection error:', error)
+      const errorMessage = error.message || '连接测试出错'
+      
+      dispatch({ type: 'SET_GIT_CONNECTED', payload: false })
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'error', message: errorMessage }
+      })
+      
+      return { success: false, message: errorMessage }
+    }
   }
 
   const syncToCloud = async () => {
@@ -162,7 +235,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       // 初始化同步系统
-      await gitSyncClient.initializeSync()
+      const initResult = await gitSyncClient.initializeSync()
+      if (!initResult) {
+        throw new Error('同步系统初始化失败')
+      }
       
       // 使用新的同步API
       const result = await gitSyncClient.syncAllToCloud()
@@ -173,6 +249,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const now = new Date().toISOString()
         dispatch({ type: 'SET_LAST_SYNC_TIME', payload: now })
         dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'success', message: '同步成功' } })
+        
+        // 手动同步后触发变化检测重置
+        gitSyncClient.triggerChangeDetection()
       } else {
         const failedModules = Object.entries(result.results)
           .filter(([_, success]) => !success)
@@ -201,7 +280,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       // 初始化同步系统
-      await gitSyncClient.initializeSync()
+      const initResult = await gitSyncClient.initializeSync()
+      if (!initResult) {
+        throw new Error('同步系统初始化失败')
+      }
       
       // 使用新的同步API
       const result = await gitSyncClient.syncAllFromCloud()
