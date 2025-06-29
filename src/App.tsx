@@ -2,7 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
 import Home from './pages/Home/Home'
-import Learning from './pages/Learning/Learning'
+import Learning from './pages/Pomodoro/PomodoroTimer'
 import Tasks from './pages/Tasks/Tasks'
 import Calendar from './pages/Calendar/Calendar'
 import Habits from './pages/Habits/Habits'
@@ -12,6 +12,7 @@ import { TaskProvider } from './context/TaskContext'
 import { CalendarProvider } from './context/CalendarContext'
 import { HabitProvider } from './context/HabitContext'
 import { BookmarkProvider } from './context/BookmarkContext'
+import { PomodoroProvider } from './context/PomodoroContext'
 
 function App() {
   return (
@@ -20,16 +21,18 @@ function App() {
         <HabitProvider>
           <CalendarProvider>
             <BookmarkProvider>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/learning" element={<Learning />} />
-                  <Route path="/tasks" element={<Tasks />} />
-                  <Route path="/calendar" element={<Calendar />} />
-                  <Route path="/habits" element={<Habits />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Routes>
-              </Layout>
+              <PomodoroProvider>
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/learning" element={<Learning />} />
+                    <Route path="/tasks" element={<Tasks />} />
+                    <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/habits" element={<Habits />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Routes>
+                </Layout>
+              </PomodoroProvider>
             </BookmarkProvider>
           </CalendarProvider>
         </HabitProvider>

@@ -91,6 +91,19 @@ class GitSyncClient {
       setData: (data) => localStorage.setItem('calendar-events', JSON.stringify(data))
     },
     {
+      name: 'pomodoro',
+      localStorageKey: 'pomodoro-data',
+      filename: 'pomodoro.json',
+      getData: () => {
+        const data = JSON.parse(localStorage.getItem('pomodoro-data') || '{"sessions":[],"settings":{}}')
+        return {
+          sessions: data.sessions || [],
+          settings: data.settings || {}
+        }
+      },
+      setData: (data) => localStorage.setItem('pomodoro-data', JSON.stringify(data))
+    },
+    {
       name: 'appSettings',
       localStorageKey: 'app-settings',
       filename: 'app-settings.json',
@@ -837,76 +850,79 @@ private async createFileWithPUT(path: string, content: string, message: string):
     return statusList
   }
 
-  // 自动同步相关的状态
+  // 自动同步相关的状态 - 暂时移除自动同步功能
   private autoSyncEnabled = false
-  private autoSyncInterval: NodeJS.Timeout | null = null
-  private readonly AUTO_SYNC_INTERVAL = 30000 // 30秒检查一次
-  private lastAutoSyncCheck = 0
+  // private autoSyncInterval: NodeJS.Timeout | null = null
+  // private readonly AUTO_SYNC_INTERVAL = 30000 // 30秒检查一次
+  // private lastAutoSyncCheck = 0
 
-  // 启用自动同步
+  // 启用自动同步 - 暂时禁用
   enableAutoSync(): void {
-    if (this.autoSyncEnabled || !this.config) return
-    
-    this.autoSyncEnabled = true
-    console.log('GitSyncClient: Auto sync enabled')
-    
-    // 初始化哈希缓存
-    this.initializeHashCache()
-    
-    // 设置定期检查
-    this.autoSyncInterval = setInterval(async () => {
-      await this.checkAndAutoSync()
-    }, this.AUTO_SYNC_INTERVAL)
+    console.log('GitSyncClient: Auto sync feature is temporarily disabled')
+    // if (this.autoSyncEnabled || !this.config) return
+    // 
+    // this.autoSyncEnabled = true
+    // console.log('GitSyncClient: Auto sync enabled')
+    // 
+    // // 初始化哈希缓存
+    // this.initializeHashCache()
+    // 
+    // // 设置定期检查
+    // this.autoSyncInterval = setInterval(async () => {
+    //   await this.checkAndAutoSync()
+    // }, this.AUTO_SYNC_INTERVAL)
   }
 
-  // 禁用自动同步
+  // 禁用自动同步 - 暂时禁用
   disableAutoSync(): void {
-    if (!this.autoSyncEnabled) return
-    
-    this.autoSyncEnabled = false
-    console.log('GitSyncClient: Auto sync disabled')
-    
-    if (this.autoSyncInterval) {
-      clearInterval(this.autoSyncInterval)
-      this.autoSyncInterval = null
-    }
+    console.log('GitSyncClient: Auto sync feature is temporarily disabled')
+    // if (!this.autoSyncEnabled) return
+    // 
+    // this.autoSyncEnabled = false
+    // console.log('GitSyncClient: Auto sync disabled')
+    // 
+    // if (this.autoSyncInterval) {
+    //   clearInterval(this.autoSyncInterval)
+    //   this.autoSyncInterval = null
+    // }
   }
 
-  // 检查并执行自动同步
-  private async checkAndAutoSync(): Promise<void> {
-    if (!this.autoSyncEnabled || !this.config) return
-    
-    const now = Date.now()
-    if (now - this.lastAutoSyncCheck < this.AUTO_SYNC_INTERVAL) return
-    
-    this.lastAutoSyncCheck = now
-    
-    try {
-      // 检查是否有本地文件变化
-      const hasChanges = this.dataModules.some(module => this.hasDataChanged(module))
-      
-      if (hasChanges) {
-        console.log('GitSyncClient: Local changes detected, starting auto sync...')
-        await this.autoSync()
-      }
-    } catch (error) {
-      console.error('GitSyncClient: Auto sync check failed:', error)
-    }
-  }
+  // 检查并执行自动同步 - 暂时禁用
+  // private async checkAndAutoSync(): Promise<void> {
+  //   if (!this.autoSyncEnabled || !this.config) return
+  //   
+  //   const now = Date.now()
+  //   if (now - this.lastAutoSyncCheck < this.AUTO_SYNC_INTERVAL) return
+  //   
+  //   this.lastAutoSyncCheck = now
+  //   
+  //   try {
+  //     // 检查是否有本地文件变化
+  //     const hasChanges = this.dataModules.some(module => this.hasDataChanged(module))
+  //     
+  //     if (hasChanges) {
+  //       console.log('GitSyncClient: Local changes detected, starting auto sync...')
+  //       await this.autoSync()
+  //     }
+  //   } catch (error) {
+  //     console.error('GitSyncClient: Auto sync check failed:', error)
+  //   }
+  // }
 
-  // 手动触发文件变化检测（供外部调用）
+  // 手动触发文件变化检测（供外部调用） - 暂时禁用
   triggerChangeDetection(): void {
-    if (this.autoSyncEnabled) {
-      // 重置检查时间，让下次检查立即执行
-      this.lastAutoSyncCheck = 0
-    }
+    console.log('GitSyncClient: Change detection is temporarily disabled')
+    // if (this.autoSyncEnabled) {
+    //   // 重置检查时间，让下次检查立即执行
+    //   this.lastAutoSyncCheck = 0
+    // }
   }
 
-  // 清理缓存 - 扩展功能
+  // 清理缓存 - 移除自动同步部分
   clearCache(): void {
     this.requestCache.clear()
     this.localHashCache.clear()
-    this.disableAutoSync() // 同时禁用自动同步
+    // this.disableAutoSync() // 同时禁用自动同步
   }
 
   // 自动同步所有需要同步的模块

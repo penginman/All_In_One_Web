@@ -507,8 +507,8 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               </div>
             </div>
             
-            {/* 自动同步开关 */}
-            <div className="flex items-center space-x-2">
+            {/* 自动同步开关 - 暂时隐藏 */}
+            {/* <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-700">自动同步</span>
               <button
                 onClick={() => dispatch({ type: 'SET_AUTO_SYNC', payload: !state.autoSync })}
@@ -522,7 +522,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
                   }`}
                 />
               </button>
-            </div>
+            </div> */}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

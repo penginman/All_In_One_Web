@@ -173,16 +173,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [state.lastSyncTime])
 
-  // 监听自动同步设置变化
-  useEffect(() => {
-    if (state.gitConnected) {
-      if (state.autoSync) {
-        gitSyncClient.enableAutoSync()
-      } else {
-        gitSyncClient.disableAutoSync()
-      }
-    }
-  }, [state.autoSync, state.gitConnected])
+  // 监听自动同步设置变化 - 暂时禁用
+  // useEffect(() => {
+  //   if (state.gitConnected) {
+  //     if (state.autoSync) {
+  //       gitSyncClient.enableAutoSync()
+  //     } else {
+  //       gitSyncClient.disableAutoSync()
+  //     }
+  //   }
+  // }, [state.autoSync, state.gitConnected])
 
   const testGitConnection = async () => {
     console.log('AppContext: testGitConnection called with config:', state.gitConfig)
@@ -250,8 +250,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_LAST_SYNC_TIME', payload: now })
         dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'success', message: '同步成功' } })
         
-        // 手动同步后触发变化检测重置
-        gitSyncClient.triggerChangeDetection()
+        // 手动同步后触发变化检测重置 - 暂时禁用
+        // gitSyncClient.triggerChangeDetection()
       } else {
         const failedModules = Object.entries(result.results)
           .filter(([_, success]) => !success)
