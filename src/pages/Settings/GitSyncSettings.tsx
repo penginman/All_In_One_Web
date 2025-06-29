@@ -172,6 +172,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
       repo: formData.repo.trim(),
       branch: formData.branch.trim() || 'main'
     }
+    config.branch = providerInfo.name === 'GitHub' ? config.branch : 'master' // Gitee默认分支为master
 
     try {
       gitSyncClient.saveConfig(config)
@@ -503,28 +504,12 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800">数据同步</h3>
-                <p className="text-sm text-gray-600">管理本地与云端数据</p>
+                <p className="text-sm text-gray-600">管理本地与云端数据（包含任务、习惯、日程等所有数据）</p>
               </div>
             </div>
-            
-            {/* 自动同步开关 - 暂时隐藏 */}
-            {/* <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-700">自动同步</span>
-              <button
-                onClick={() => dispatch({ type: 'SET_AUTO_SYNC', payload: !state.autoSync })}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                  state.autoSync ? 'bg-green-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                    state.autoSync ? 'translate-x-5' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div> */}
           </div>
 
+          {/* 通用同步按钮 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={syncToCloud}
@@ -532,7 +517,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               className="flex items-center justify-center space-x-2 p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               {getSyncStatusIcon()}
-              <span>同步到云端</span>
+              <span>同步所有数据到云端</span>
             </button>
             <button
               onClick={syncFromCloud}
@@ -540,8 +525,24 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               className="flex items-center justify-center space-x-2 p-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               <ArrowPathIcon className="w-4 h-4" />
-              <span>从云端同步</span>
+              <span>从云端同步所有数据</span>
             </button>
+          </div>
+
+          {/* 数据说明 */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-800 mb-2">同步数据包含：</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>• 任务数据（tasks.json）</li>
+              <li>• 习惯数据（habits.json）</li>
+              <li>• 书签数据（bookmarks.json）</li>
+              <li>• 日程数据（calendar-events.json）</li>
+              <li>• 番茄钟数据（pomodoro.json）</li>
+              <li>• 应用设置（app-settings.json）</li>
+            </ul>
+            <p className="text-xs text-blue-600 mt-2">
+              所有文件以 "sync-" 前缀保存到云端仓库
+            </p>
           </div>
 
           {state.lastSyncTime && (

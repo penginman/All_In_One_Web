@@ -224,95 +224,86 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // 同步到云端
   const syncToCloud = async () => {
-    if (!state.gitConnected) {
-      dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message: 'Git同步未连接' } })
-      return
-    }
-
-    console.log('Starting manual sync to cloud...')
-    dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'syncing', message: '同步到云端中...' } })
+    if (!state.gitConnected) return
 
     try {
-      // 初始化同步系统
-      const initResult = await gitSyncClient.initializeSync()
-      if (!initResult) {
-        throw new Error('同步系统初始化失败')
-      }
-      
-      // 使用新的同步API
+      dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'syncing', message: '正在同步到云端...' } })
+
+      // 使用 gitSyncClient 的 syncAllToCloud 方法来同步所有数据模块
       const result = await gitSyncClient.syncAllToCloud()
-
-      console.log('Sync to cloud result:', result)
-
+      
       if (result.success) {
-        const now = new Date().toISOString()
-        dispatch({ type: 'SET_LAST_SYNC_TIME', payload: now })
-        dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'success', message: '同步成功' } })
-        
-        // 手动同步后触发变化检测重置 - 暂时禁用
-        // gitSyncClient.triggerChangeDetection()
+        const moduleNames = gitSyncClient.getModuleNames()
+        dispatch({ 
+          type: 'SET_SYNC_STATUS', 
+          payload: { status: 'success', message: `成功同步 ${moduleNames.length} 个数据模块到云端` } 
+        })
       } else {
-        const failedModules = Object.entries(result.results)
-          .filter(([_, success]) => !success)
-          .map(([module]) => module)
-        
-        const message = failedModules.length > 0 
-          ? `部分模块同步失败: ${failedModules.join(', ')}`
-          : '同步失败'
-        
-        dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message } })
+        const successCount = Object.values(result.results).filter(Boolean).length
+        const totalCount = Object.keys(result.results).length
+        dispatch({ 
+          type: 'SET_SYNC_STATUS', 
+          payload: { 
+            status: 'error', 
+            message: `部分同步失败：${successCount}/${totalCount} 个模块同步成功` 
+          } 
+        })
       }
+
+      dispatch({ type: 'SET_LAST_SYNC_TIME', payload: new Date().toISOString() })
+
     } catch (error: any) {
-      console.error('Sync to cloud error:', error)
-      dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message: error.message || '同步出错' } })
+      console.error('同步到云端失败:', error)
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'error', message: '同步到云端失败: ' + error.message } 
+      })
     }
   }
 
+  // 从云端同步
   const syncFromCloud = async () => {
-    if (!state.gitConnected) {
-      dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message: 'Git同步未连接' } })
-      return
-    }
-
-    console.log('Starting manual sync from cloud...')
-    dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'syncing', message: '从云端同步中...' } })
+    if (!state.gitConnected) return
 
     try {
-      // 初始化同步系统
-      const initResult = await gitSyncClient.initializeSync()
-      if (!initResult) {
-        throw new Error('同步系统初始化失败')
-      }
-      
-      // 使用新的同步API
+      dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'syncing', message: '正在从云端同步...' } })
+
+      // 使用 gitSyncClient 的 syncAllFromCloud 方法来同步所有数据模块
       const result = await gitSyncClient.syncAllFromCloud()
       
-      console.log('Sync from cloud result:', result)
-
       if (result.success) {
-        const now = new Date().toISOString()
-        dispatch({ type: 'SET_LAST_SYNC_TIME', payload: now })
-        dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'success', message: '同步成功，请刷新页面查看最新数据' } })
-        
-        // 自动刷新页面来加载新数据
-        setTimeout(() => {
-          window.location.reload()
-        }, 2000)
+        const moduleNames = gitSyncClient.getModuleNames()
+        dispatch({ 
+          type: 'SET_SYNC_STATUS', 
+          payload: { status: 'success', message: `成功从云端同步 ${moduleNames.length} 个数据模块` } 
+        })
       } else {
-        const failedModules = Object.entries(result.results)
-          .filter(([_, success]) => !success)
-          .map(([module]) => module)
-        
-        const message = failedModules.length > 0 
-          ? `部分模块同步失败: ${failedModules.join(', ')}`
-          : '云端无数据或下载失败'
-        
-        dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message } })
+        const successCount = Object.values(result.results).filter(Boolean).length
+        const totalCount = Object.keys(result.results).length
+        dispatch({ 
+          type: 'SET_SYNC_STATUS', 
+          payload: { 
+            status: 'error', 
+            message: `部分同步失败：${successCount}/${totalCount} 个模块同步成功` 
+          } 
+        })
       }
+
+      dispatch({ type: 'SET_LAST_SYNC_TIME', payload: new Date().toISOString() })
+
+      // 刷新页面以重新加载所有数据
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+
     } catch (error: any) {
-      console.error('Sync from cloud error:', error)
-      dispatch({ type: 'SET_SYNC_STATUS', payload: { status: 'error', message: error.message || '同步出错' } })
+      console.error('从云端同步失败:', error)
+      dispatch({ 
+        type: 'SET_SYNC_STATUS', 
+        payload: { status: 'error', message: '从云端同步失败: ' + error.message } 
+      })
     }
   }
 
@@ -336,3 +327,4 @@ export function useAppContext() {
   }
   return context
 }
+   

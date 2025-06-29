@@ -1,6 +1,15 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react'
 import { Habit, HabitRecord, DailyNote, HabitState, HabitStats } from '../types/habits'
 import useLocalStorage from '../hooks/useLocalStorage'
+
+// 整合的习惯数据结构
+interface HabitData {
+  habits: Habit[]
+  records: HabitRecord[]
+  dailyNotes: DailyNote[]
+  version: string
+  lastUpdated: string
+}
 
 type HabitAction =
   | { type: 'ADD_HABIT'; payload: Omit<Habit, 'id' | 'createdAt'> }
@@ -11,7 +20,8 @@ type HabitAction =
   | { type: 'UPDATE_DAILY_NOTE'; payload: { date: Date; content: string } }
   | { type: 'SET_VIEW'; payload: 'week' | 'month' }
   | { type: 'SET_DATE'; payload: Date }
-  | { type: 'LOAD_DATA'; payload: { habits: Habit[]; records: HabitRecord[]; notes: DailyNote[] } }
+  | { type: 'LOAD_DATA'; payload: HabitData }
+  | { type: 'IMPORT_DATA'; payload: HabitData }
 
 const initialState: HabitState = {
   habits: [],
@@ -19,6 +29,14 @@ const initialState: HabitState = {
   dailyNotes: [],
   currentDate: new Date(),
   view: 'week'
+}
+
+const initialHabitData: HabitData = {
+  habits: [],
+  records: [],
+  dailyNotes: [],
+  version: '1.0.0',
+  lastUpdated: new Date().toISOString()
 }
 
 function habitReducer(state: HabitState, action: HabitAction): HabitState {
@@ -103,6 +121,7 @@ function habitReducer(state: HabitState, action: HabitAction): HabitState {
     case 'SET_DATE':
       return { ...state, currentDate: action.payload }
     case 'LOAD_DATA':
+    case 'IMPORT_DATA':
       return {
         ...state,
         habits: action.payload.habits.map(habit => ({
@@ -116,7 +135,7 @@ function habitReducer(state: HabitState, action: HabitAction): HabitState {
           date: new Date(record.date),
           createdAt: new Date(record.createdAt)
         })),
-        dailyNotes: action.payload.notes.map(note => ({
+        dailyNotes: action.payload.dailyNotes.map(note => ({
           ...note,
           date: new Date(note.date),
           createdAt: new Date(note.createdAt),
@@ -135,35 +154,115 @@ const HabitContext = createContext<{
   isHabitCompletedOnDate: (habitId: string, date: Date) => boolean
   getDayProgress: (date: Date) => number
   getDailyNote: (date: Date) => string
+  exportHabitData: () => HabitData
+  importHabitData: (data: HabitData) => void
 } | null>(null)
 
 export function HabitProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(habitReducer, initialState)
-  const [storedHabits, setStoredHabits] = useLocalStorage<Habit[]>('habits', [])
-  const [storedRecords, setStoredRecords] = useLocalStorage<HabitRecord[]>('habit-records', [])
-  const [storedNotes, setStoredNotes] = useLocalStorage<DailyNote[]>('daily-notes', [])
+  const [storedData, setStoredData] = useLocalStorage<HabitData>('habit-data', initialHabitData)
 
-  // 初始化加载数据
+  // 迁移旧数据 - 只在初始化时执行一次
   useEffect(() => {
-    const hasData = storedHabits.length > 0 || storedRecords.length > 0 || storedNotes.length > 0
-    if (hasData) {
-      dispatch({
-        type: 'LOAD_DATA',
-        payload: {
-          habits: storedHabits,
-          records: storedRecords,
-          notes: storedNotes
+    const migrateOldData = () => {
+      try {
+        // 检查是否有旧的分离数据
+        const oldHabits = localStorage.getItem('habits')
+        const oldRecords = localStorage.getItem('habit-records')
+        const oldNotes = localStorage.getItem('daily-notes')
+        
+        if ((oldHabits && oldHabits !== '[]') || 
+            (oldRecords && oldRecords !== '[]') || 
+            (oldNotes && oldNotes !== '[]')) {
+          
+          console.log('HabitContext: Migrating old habit data...')
+          
+          const habits = oldHabits ? JSON.parse(oldHabits) : []
+          const records = oldRecords ? JSON.parse(oldRecords) : []
+          const dailyNotes = oldNotes ? JSON.parse(oldNotes) : []
+          
+          const migratedData: HabitData = {
+            habits,
+            records,
+            dailyNotes,
+            version: '1.0.0',
+            lastUpdated: new Date().toISOString()
+          }
+          
+          setStoredData(migratedData)
+          
+          // 删除旧数据
+          localStorage.removeItem('habits')
+          localStorage.removeItem('habit-records')
+          localStorage.removeItem('daily-notes')
+          
+          console.log('HabitContext: Migration completed')
+          return migratedData
         }
-      })
+        
+        return storedData
+      } catch (error) {
+        console.error('HabitContext: Migration failed:', error)
+        return storedData
+      }
+    }
+    
+    const dataToLoad = migrateOldData()
+    if (dataToLoad.habits.length > 0 || dataToLoad.records.length > 0 || dataToLoad.dailyNotes.length > 0) {
+      dispatch({ type: 'LOAD_DATA', payload: dataToLoad })
     }
   }, []) // 空依赖，只在挂载时执行
 
-  // 自动保存数据
+  // 自动保存数据 - 只在数据变化时保存，移除定时器
   useEffect(() => {
-    setStoredHabits(state.habits)
-    setStoredRecords(state.records)
-    setStoredNotes(state.dailyNotes)
-  }, [state.habits, state.records, state.dailyNotes, setStoredHabits, setStoredRecords, setStoredNotes])
+    // 跳过初始渲染和数据加载时的保存
+    if (state.habits.length === 0 && state.records.length === 0 && state.dailyNotes.length === 0) {
+      return
+    }
+
+    const habitData: HabitData = {
+      habits: state.habits,
+      records: state.records,
+      dailyNotes: state.dailyNotes,
+      version: '1.0.0',
+      lastUpdated: new Date().toISOString()
+    }
+    setStoredData(habitData)
+    console.log('HabitContext: Data saved automatically')
+  }, [state.habits, state.records, state.dailyNotes, setStoredData])
+
+  // 监听来自云端同步的数据更新
+  useEffect(() => {
+    const handleStorageChange = (event: CustomEvent | StorageEvent) => {
+      if ('detail' in event && event.detail?.key === 'habit-data') {
+        // 来自云端同步的更新
+        try {
+          const newData = JSON.parse(event.detail.newValue)
+          console.log('HabitContext: Received cloud sync update')
+          dispatch({ type: 'IMPORT_DATA', payload: newData })
+        } catch (error) {
+          console.error('HabitContext: Failed to parse cloud sync data:', error)
+        }
+      } else if (event instanceof StorageEvent && event.key === 'habit-data' && event.newValue) {
+        // 来自其他标签页的更新
+        try {
+          const newData = JSON.parse(event.newValue)
+          console.log('HabitContext: Received cross-tab update')
+          dispatch({ type: 'IMPORT_DATA', payload: newData })
+        } catch (error) {
+          console.error('HabitContext: Failed to parse cross-tab data:', error)
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange as EventListener)
+    window.addEventListener('storage', handleStorageChange as EventListener)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange as EventListener)
+      window.removeEventListener('storage', handleStorageChange as EventListener)
+    }
+  }, [])
 
   const isHabitCompletedOnDate = (habitId: string, date: Date) => {
     return state.records.some(
@@ -276,14 +375,11 @@ export function HabitProvider({ children }: { children: ReactNode }) {
       return true
     })
 
-
-
     if (activeHabits.length === 0) return 0
 
     const completedHabits = activeHabits.filter(habit =>
       isHabitCompletedOnDate(habit.id, date)
     )
-
 
     return Math.round((completedHabits.length / activeHabits.length) * 100)
   }
@@ -295,6 +391,22 @@ export function HabitProvider({ children }: { children: ReactNode }) {
     return note?.content || ''
   }
 
+  // 导出习惯数据
+  const exportHabitData = (): HabitData => {
+    return {
+      habits: state.habits,
+      records: state.records,
+      dailyNotes: state.dailyNotes,
+      version: '1.0.0',
+      lastUpdated: new Date().toISOString()
+    }
+  }
+
+  // 导入习惯数据
+  const importHabitData = (data: HabitData) => {
+    dispatch({ type: 'IMPORT_DATA', payload: data })
+  }
+
   return (
     <HabitContext.Provider value={{
       state,
@@ -302,7 +414,9 @@ export function HabitProvider({ children }: { children: ReactNode }) {
       getHabitStats,
       isHabitCompletedOnDate,
       getDayProgress,
-      getDailyNote
+      getDailyNote,
+      exportHabitData,
+      importHabitData
     }}>
       {children}
     </HabitContext.Provider>

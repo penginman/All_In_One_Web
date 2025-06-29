@@ -68,10 +68,25 @@ class GitSyncClient {
     },
     {
       name: 'habits',
-      localStorageKey: 'habits',
+      localStorageKey: 'habit-data', // 修改为使用整合后的存储键
       filename: 'habits.json', 
-      getData: () => JSON.parse(localStorage.getItem('habits') || '[]'),
-      setData: (data) => localStorage.setItem('habits', JSON.stringify(data))
+      getData: () => {
+        const data = JSON.parse(localStorage.getItem('habit-data') || '{"habits":[],"records":[],"dailyNotes":[],"version":"1.0.0","lastUpdated":""}')
+        return {
+          habits: data.habits || [],
+          records: data.records || [],
+          dailyNotes: data.dailyNotes || [],
+          version: data.version || '1.0.0',
+          lastUpdated: data.lastUpdated || new Date().toISOString()
+        }
+      },
+      setData: (data) => {
+        localStorage.setItem('habit-data', JSON.stringify(data))
+        // 触发习惯数据重新加载
+        window.dispatchEvent(new CustomEvent('storage', { 
+          detail: { key: 'habit-data', newValue: JSON.stringify(data) } 
+        }))
+      }
     },
     {
       name: 'bookmarks',

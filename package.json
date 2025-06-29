@@ -1,13 +1,27 @@
 {
-  "name": "personal-efficiency-tool",
+  "name": "all-in-one-web-tool",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "一个现代化的全功能个人效率管理工具",
+  "keywords": ["react", "typescript", "productivity", "task-management", "habits", "bookmarks"],
+  "author": "Your Name",
+  "license": "MIT",
+  "homepage": "https://yourusername.github.io/All_In_One_Web/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/All_In_One_Web.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/All_In_One_Web/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",
@@ -31,5 +45,9 @@
     "tailwindcss": "^3.3.6",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
   }
 }

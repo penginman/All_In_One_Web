@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react'
 import { CalendarEvent, CalendarView, CalendarState } from '../types/calendar'
 import { useTaskContext } from './TaskContext'
+import { useHabitContext } from './HabitContext'
 import useLocalStorage from '../hooks/useLocalStorage'
 
 type CalendarAction = 
@@ -79,6 +80,7 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(calendarReducer, initialState)
   const [storedEvents, setStoredEvents] = useLocalStorage<CalendarEvent[]>('calendar-events', [])
   const taskContext = useTaskContext()
+  const habitContext = useHabitContext()
 
   // 初始化加载数据
   useEffect(() => {
@@ -87,9 +89,13 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
     }
   }, []) // 空依赖，只在挂载时执行
 
-  // 自动保存事件
+  // 自动保存事件 - 只在数据变化时保存
   useEffect(() => {
+    // 跳过初始渲染时的空数组保存
+    if (state.events.length === 0) return
+    
     setStoredEvents(state.events)
+    console.log('CalendarContext: Events saved automatically')
   }, [state.events, setStoredEvents])
 
   // 合并所有事件（日程 + 任务 + 习惯）
@@ -118,9 +124,49 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         })
       events.push(...taskEvents)
     }
+
+    // 添加习惯事件
+    if (state.showHabits && habitContext) {
+      const today = new Date()
+      const startDate = new Date(today)
+      startDate.setDate(today.getDate() - 30) // 显示过去30天的习惯完成情况
+      
+      const habitEvents: CalendarEvent[] = []
+      
+      // 为每个活跃习惯创建事件
+      habitContext.state.habits
+        .filter(habit => habit.isActive)
+        .forEach(habit => {
+          // 为过去30天中每一天检查是否完成了习惯
+          for (let i = 0; i <= 30; i++) {
+            const checkDate = new Date(startDate)
+            checkDate.setDate(startDate.getDate() + i)
+            
+            const dayOfWeek = checkDate.getDay()
+            const shouldShow = habit.frequency === 'daily' || 
+              (habit.frequency === 'weekly' && habit.weekdays?.includes(dayOfWeek))
+            
+            if (shouldShow && habitContext.isHabitCompletedOnDate(habit.id, checkDate)) {
+              habitEvents.push({
+                id: `habit-${habit.id}-${checkDate.toDateString()}`,
+                title: `✓ ${habit.name}`,
+                description: `习惯完成：${habit.name}`,
+                startDate: new Date(checkDate),
+                endDate: new Date(checkDate),
+                color: habit.color,
+                category: 'habit' as const,
+                sourceId: habit.id,
+                createdAt: habit.createdAt
+              })
+            }
+          }
+        })
+      
+      events.push(...habitEvents)
+    }
     
     return events
-  }, [state.events, state.showTasks, state.showHabits, taskContext?.state.tasks, taskContext?.state.groups])
+  }, [state.events, state.showTasks, state.showHabits, taskContext?.state.tasks, taskContext?.state.groups, habitContext?.state.habits, habitContext?.state.records, habitContext?.isHabitCompletedOnDate])
 
   return (
     <CalendarContext.Provider value={{ state, dispatch, allEvents }}>
