@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/24/outline'
-import { useAppContext } from '../../context/AppContext'
 import { SearchEngine, SearchEngineKey } from '../../types/bookmarks'
 
 import BookmarkManager from '../../components/Bookmarks/BookmarkManager'
@@ -38,7 +37,6 @@ export const DEFAULT_SEARCH_ENGINES: SearchEngine[] = [
 ]
 
 export class SearchEngineManager {
-  private static STORAGE_KEY = 'app-searchEngine-data'
 
   static getAvailableEngines(): SearchEngine[] {
     const customEngine = this.getCustomEngine()
@@ -86,7 +84,6 @@ export class SearchEngineManager {
 }
 
 function Home() {
-  const { state } = useAppContext()
   const [searchQuery, setSearchQuery] = useState('')
   const [showCustomEngineForm, setShowCustomEngineForm] = useState(false)
   const [customEngine, setCustomEngine] = useState({ name: '', url: '', icon: '🔍' })

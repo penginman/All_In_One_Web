@@ -8,13 +8,14 @@ export interface GitConfig {
   branch?: string
 }
 
+
 export interface SyncData {
-  tasks: any[]
-  taskGroups: any[]
-  habits: any[]
-  bookmarks: any[]
-  bookmarkGroups: any[]
-  calendarEvents: any[]
+  tasks: unknown[]
+  taskGroups: unknown[]
+  habits: unknown[]
+  bookmarks: unknown[]
+  bookmarkGroups: unknown[]
+  calendarEvents: unknown[]
   lastSyncTime: string
   md5Hash: string
 }
@@ -23,8 +24,8 @@ export interface DataModule {
   name: string
   localStorageKey: string
   filename: string
-  getData: () => any
-  setData: (data: any) => void
+  getData: () => unknown
+  setData: (data: unknown) => void
 }
 
 export interface SyncStatus {
@@ -62,8 +63,9 @@ class GitSyncClient {
         return { tasks, taskGroups }
       },
       setData: (data) => {
-        localStorage.setItem('tasks', JSON.stringify(data.tasks || []))
-        localStorage.setItem('taskGroups', JSON.stringify(data.taskGroups || []))
+        const d = data as { tasks?: unknown[]; taskGroups?: unknown[] }
+        localStorage.setItem('tasks', JSON.stringify(d.tasks || []))
+        localStorage.setItem('taskGroups', JSON.stringify(d.taskGroups || []))
       }
     },
     {
@@ -144,16 +146,21 @@ class GitSyncClient {
         }
       },
       setData: (data) => {
-        localStorage.setItem('app-theme', data.theme || 'light')
-        localStorage.setItem('app-searchEngine', data.searchEngine || 'google')
-        
+        const d = data as {
+          theme?: string;
+          searchEngine?: string;
+          autoSync?: boolean;
+          sidebarCollapsed?: boolean;
+          lastSyncTime?: string;
+        }
+        localStorage.setItem('app-theme', d.theme || 'light')
+        localStorage.setItem('app-searchEngine', d.searchEngine || 'google')
         // 确保 autoSync 正确保存
-        const autoSyncValue = data.autoSync !== undefined ? data.autoSync : true
+        const autoSyncValue = d.autoSync !== undefined ? d.autoSync : true
         localStorage.setItem('app-autoSync', JSON.stringify(autoSyncValue))
-        
-        localStorage.setItem('app-sidebarCollapsed', JSON.stringify(data.sidebarCollapsed || false))
-        if (data.lastSyncTime) {
-          localStorage.setItem('app-lastSyncTime', data.lastSyncTime)
+        localStorage.setItem('app-sidebarCollapsed', JSON.stringify(d.sidebarCollapsed || false))
+        if (d.lastSyncTime) {
+          localStorage.setItem('app-lastSyncTime', d.lastSyncTime)
         }
       }
     }
@@ -163,7 +170,7 @@ class GitSyncClient {
   private localHashCache = new Map<string, string>()
 
   // 添加请求防抖缓存
-  private requestCache = new Map<string, Promise<any>>()
+  private requestCache = new Map<string, Promise<Response>>()
   private readonly CACHE_TIMEOUT = 5000 // 5秒缓存
 
   // 加密配置
@@ -277,7 +284,7 @@ class GitSyncClient {
   }
 
   // 生成数据哈希
-  private generateDataHash(data: any): string {
+  private generateDataHash(data: unknown): string {
     return CryptoJS.MD5(JSON.stringify(data, null, 2)).toString()
   }
 
@@ -306,7 +313,7 @@ class GitSyncClient {
       }
       
       return false
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`GitSyncClient: Error checking data changes for ${module.name}:`, error)
       return false
     }
@@ -314,7 +321,7 @@ class GitSyncClient {
 
   // 初始化本地哈希缓存
   private initializeHashCache(): void {
-    this.dataModules.forEach(module => {
+    this.dataModules.forEach((module: DataModule) => {
       this.localHashCache.set(module.name, this.getLocalDataHash(module))
     })
   }
@@ -391,9 +398,9 @@ class GitSyncClient {
         console.error('GitSyncClient: API error:', response.status, errorText)
         return { success: false, message: `连接失败: ${response.status} ${response.statusText}` }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('GitSyncClient: Connection error:', error)
-      return { success: false, message: `连接错误: ${error.message}` }
+      return { success: false, message: `连接错误: ${error instanceof Error ? error.message : String(error)}` }
     }
   }
 
@@ -417,7 +424,7 @@ class GitSyncClient {
         }
       }
       return null
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.log('File not found:', path)
       return null
     }
@@ -443,7 +450,12 @@ async createOrUpdateFile(path: string, content: string, message: string, existin
     }
 
     // 构建请求数据
-    const requestData: any = {
+    const requestData: {
+      message: string;
+      content: string;
+      branch: string;
+      sha?: string;
+    } = {
       message,
       content: encodedContent,
       branch: this.config?.branch || (this.config?.provider === 'gitee' ? 'master' : 'main')
@@ -497,7 +509,7 @@ async createOrUpdateFile(path: string, content: string, message: string, existin
       
       return false
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Create/update file failed:', error)
     return false
   }
@@ -509,28 +521,28 @@ private async createNewFileForGitee(path: string, content: string, message: stri
     const encodedContent = btoa(unescape(encodeURIComponent(content)))
     
     // 方法1：尝试 POST 请求（某些 Gitee 版本支持）
-    const postResult = await this.tryPostCreate(path, content, message, encodedContent)
+    const postResult = await this.tryPostCreate(path, message, encodedContent)
     if (postResult) return true
     
     // 方法2：尝试创建空文件然后更新
-    const emptyCreateResult = await this.tryCreateThenUpdate(path, content, message, encodedContent)
+    const emptyCreateResult = await this.tryCreateThenUpdate(path, message, encodedContent)
     if (emptyCreateResult) return true
     
     // 方法3：使用 PUT 但提供空 SHA（某些情况下可能工作）
-    const putEmptyResult = await this.tryPutWithEmptySha(path, content, message, encodedContent)
+    const putEmptyResult = await this.tryPutWithEmptySha(path, message, encodedContent)
     if (putEmptyResult) return true
     
     console.error('All Gitee file creation methods failed')
     return false
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Gitee create new file failed:', error)
     return false
   }
 }
 
 // 尝试使用 POST 创建文件
-private async tryPostCreate(path: string, content: string, message: string, encodedContent: string): Promise<boolean> {
+private async tryPostCreate(path: string, message: string, encodedContent: string): Promise<boolean> {
   try {
     const requestData = {
       message,
@@ -557,14 +569,14 @@ private async tryPostCreate(path: string, content: string, message: string, enco
     
     console.log('POST create failed:', response.status)
     return false
-  } catch (error) {
+  } catch (error: unknown) {
     console.log('POST create error:', error)
     return false
   }
 }
 
 // 尝试先创建空文件再更新
-private async tryCreateThenUpdate(path: string, content: string, message: string, encodedContent: string): Promise<boolean> {
+private async tryCreateThenUpdate(path: string, message: string, encodedContent: string): Promise<boolean> {
   try {
     // 先创建一个空文件
     const emptyContent = btoa('')
@@ -610,14 +622,14 @@ private async tryCreateThenUpdate(path: string, content: string, message: string
     
     console.log('Create then update failed')
     return false
-  } catch (error) {
+  } catch (error: unknown) {
     console.log('Create then update error:', error)
     return false
   }
 }
 
 // 尝试使用空 SHA 的 PUT 请求
-private async tryPutWithEmptySha(path: string, content: string, message: string, encodedContent: string): Promise<boolean> {
+private async tryPutWithEmptySha(path: string, message: string, encodedContent: string): Promise<boolean> {
   try {
     const requestData = {
       message,
@@ -642,51 +654,12 @@ private async tryPutWithEmptySha(path: string, content: string, message: string,
     
     console.log('PUT with empty SHA failed:', response.status)
     return false
-  } catch (error) {
+  } catch (error: unknown) {
     console.log('PUT with empty SHA error:', error)
     return false
   }
 }
 
-// 使用 PUT 方法创建文件（不带 SHA）
-private async createFileWithPUT(path: string, content: string, message: string): Promise<boolean> {
-  try {
-    const encodedContent = btoa(unescape(encodeURIComponent(content)))
-    
-    const requestData = {
-      message,
-      content: encodedContent,
-      branch: this.config?.branch || 'master'
-      // 注意：不添加 sha 字段
-    }
-
-    const endpoint = `${this.getRepoPath()}/contents/${path}`
-    
-    console.log('Creating file with PUT (no SHA):', {
-      method: 'PUT',
-      endpoint,
-      data: { ...requestData, content: '[CONTENT_HIDDEN]' }
-    })
-
-    const response = await this.apiRequest(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(requestData)
-    })
-
-    if (response.ok) {
-      const result = await response.json()
-      console.log('File creation with PUT successful')
-      return result.content !== undefined
-    } else {
-      const errorText = await response.text()
-      console.error('PUT create failed:', response.status, errorText)
-      return false
-    }
-  } catch (error: any) {
-    console.error('PUT create file failed:', error)
-    return false
-  }
-}
 
   // 删除文件
   async deleteFile(path: string, message: string = '删除文件'): Promise<boolean> {
@@ -720,12 +693,11 @@ private async createFileWithPUT(path: string, content: string, message: string):
       
       if (response.ok) {
         const data = await response.json()
-        
         // 确保返回的是数组（目录内容）
         if (Array.isArray(data)) {
           return data
-            .filter((item: any) => item.type === 'file') // 只返回文件，不包括目录
-            .map((item: any) => ({
+            .filter((item: { type: string }) => item.type === 'file') // 只返回文件，不包括目录
+            .map((item: { name: string; sha: string; size: number; download_url: string; path: string }) => ({
               name: item.name,
               sha: item.sha,
               size: item.size,
@@ -866,7 +838,6 @@ private async createFileWithPUT(path: string, content: string, message: string):
   }
 
   // 自动同步相关的状态 - 暂时移除自动同步功能
-  private autoSyncEnabled = false
   // private autoSyncInterval: NodeJS.Timeout | null = null
   // private readonly AUTO_SYNC_INTERVAL = 30000 // 30秒检查一次
   // private lastAutoSyncCheck = 0
@@ -1038,14 +1009,14 @@ private async createFileWithPUT(path: string, content: string, message: string):
   }
 
   // 获取仓库信息
-  async getRepoInfo(): Promise<any> {
+  async getRepoInfo(): Promise<Record<string, unknown> | null> {
     try {
       const response = await this.apiRequest(this.getRepoPath())
       if (response.ok) {
         return await response.json()
       }
       return null
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Get repo info failed:', error)
       return null
     }
@@ -1058,7 +1029,7 @@ private async createFileWithPUT(path: string, content: string, message: string):
       const url = `repos/${this.config.owner}/${this.config.repo}`
       const response = await this.apiRequest(url)
       return response.ok
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Repository check failed:', error)
       return false
     }

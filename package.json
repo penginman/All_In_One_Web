@@ -4,16 +4,23 @@
   "version": "1.0.0",
   "type": "module",
   "description": "一个现代化的全功能个人效率管理工具",
-  "keywords": ["react", "typescript", "productivity", "task-management", "habits", "bookmarks"],
+  "keywords": [
+    "react",
+    "typescript",
+    "productivity",
+    "task-management",
+    "habits",
+    "bookmarks"
+  ],
   "author": "Your Name",
   "license": "MIT",
-  "homepage": "https://yourusername.github.io/All_In_One_Web/",
+  "homepage": "https://github.com/we-worker/All_In_One_Web",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/All_In_One_Web.git"
+    "url": "https://github.com/we-worker/All_In_One_Web.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/All_In_One_Web/issues"
+    "url": "https://github.com/we-worker/All_In_One_Web/issues"
   },
   "scripts": {
     "dev": "vite",
@@ -32,6 +39,7 @@
   },
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
+    "@types/node": "^24.0.7",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
@@ -39,6 +47,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.4.32",

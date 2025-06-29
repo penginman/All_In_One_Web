@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { 
   CloudIcon, 
   CheckCircleIcon, 
@@ -130,7 +130,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
           if (result.success) {
             setHasLoadedFiles(false)
           }
-        } catch (error: any) {
+        } catch (error) {
           console.error('GitSyncSettings: Auto test error:', error)
           dispatch({ 
             type: 'SET_SYNC_STATUS', 
@@ -183,7 +183,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
       })
       
       handleTestConnection()
-    } catch (error: any) {
+    } catch (error) {
       dispatch({ 
         type: 'SET_SYNC_STATUS', 
         payload: { status: 'error', message: '保存配置失败' } 
@@ -541,7 +541,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               <li>• 应用设置（app-settings.json）</li>
             </ul>
             <p className="text-xs text-blue-600 mt-2">
-              所有文件以 "sync-" 前缀保存到云端仓库
+              所有文件以 &quot;sync-&quot; 前缀保存到云端仓库
             </p>
           </div>
 

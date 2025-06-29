@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, ReactNode, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react'
 import { Habit, HabitRecord, DailyNote, HabitState, HabitStats } from '../types/habits'
 import useLocalStorage from '../hooks/useLocalStorage'
 
@@ -65,18 +65,17 @@ function habitReducer(state: HabitState, action: HabitAction): HabitState {
         habits: state.habits.filter(habit => habit.id !== action.payload),
         records: state.records.filter(record => record.habitId !== action.payload)
       }
-    case 'TOGGLE_HABIT_RECORD':
-      const { habitId, date } = action.payload
-      const dateStr = date.toDateString()
+    case 'TOGGLE_HABIT_RECORD': {
+      const { habitId, date } = action.payload;
+      const dateStr = date.toDateString();
       const existingRecord = state.records.find(
         record => record.habitId === habitId && record.date.toDateString() === dateStr
-      )
-      
+      );
       if (existingRecord) {
         return {
           ...state,
           records: state.records.filter(record => record.id !== existingRecord.id)
-        }
+        };
       } else {
         return {
           ...state,
@@ -86,15 +85,15 @@ function habitReducer(state: HabitState, action: HabitAction): HabitState {
             date: new Date(date),
             createdAt: new Date()
           }]
-        }
+        };
       }
+    }
     case 'ADD_DAILY_NOTE':
-    case 'UPDATE_DAILY_NOTE':
-      const noteDate = action.payload.date.toDateString()
+    case 'UPDATE_DAILY_NOTE': {
+      const noteDate = action.payload.date.toDateString();
       const existingNote = state.dailyNotes.find(
         note => note.date.toDateString() === noteDate
-      )
-      
+      );
       if (existingNote) {
         return {
           ...state,
@@ -103,7 +102,7 @@ function habitReducer(state: HabitState, action: HabitAction): HabitState {
               ? { ...note, content: action.payload.content, updatedAt: new Date() }
               : note
           )
-        }
+        };
       } else {
         return {
           ...state,
@@ -114,8 +113,9 @@ function habitReducer(state: HabitState, action: HabitAction): HabitState {
             createdAt: new Date(),
             updatedAt: new Date()
           }]
-        }
+        };
       }
+    }
     case 'SET_VIEW':
       return { ...state, view: action.payload }
     case 'SET_DATE':

@@ -213,15 +213,21 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
           dispatch({
             type: 'LOAD_FROM_STORAGE',
             payload: {
-              bookmarks: (bookmarks || []).map((b: any) => ({
-                ...b,
-                createdAt: new Date(b.createdAt),
-                updatedAt: new Date(b.updatedAt)
-              })),
-              groups: (groups || initialState.groups).map((g: any) => ({
-                ...g,
-                createdAt: new Date(g.createdAt)
-              }))
+              bookmarks: (bookmarks || []).map((b: unknown) => {
+                const bookmark = b as import('../types/bookmarks').Bookmark
+                return {
+                  ...bookmark,
+                  createdAt: new Date(bookmark.createdAt),
+                  updatedAt: new Date(bookmark.updatedAt)
+                }
+              }),
+              groups: (groups || initialState.groups).map((g: unknown) => {
+                const group = g as import('../types/bookmarks').BookmarkGroup
+                return {
+                  ...group,
+                  createdAt: new Date(group.createdAt)
+                }
+              })
             }
           })
         }

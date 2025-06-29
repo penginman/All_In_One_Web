@@ -1,4 +1,3 @@
-import React from 'react'
 import { XMarkIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleIconSolid, FireIcon } from '@heroicons/react/24/solid'
 import { useHabitContext } from '../../context/HabitContext'

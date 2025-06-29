@@ -110,20 +110,20 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       return { ...state, showCompleted: action.payload }
     case 'TOGGLE_DELETED':
       return { ...state, showDeleted: action.payload }
-    case 'DELETE_GROUP':
-      const groupToDelete = action.payload
+    case 'DELETE_GROUP': {
       // 将该分组下的任务移到通用事件
       const updatedTasks = state.tasks.map(task =>
-        task.groupId === groupToDelete
+        task.groupId === action.payload
           ? { ...task, groupId: '1' }
           : task
       )
       return {
         ...state,
         tasks: updatedTasks,
-        groups: state.groups.filter(group => group.id !== groupToDelete),
-        selectedGroupId: state.selectedGroupId === groupToDelete ? '1' : state.selectedGroupId
+        groups: state.groups.filter(group => group.id !== action.payload),
+        selectedGroupId: state.selectedGroupId === action.payload ? '1' : state.selectedGroupId
       }
+    }
     case 'LOAD_DATA':
       return {
         ...state,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { 
   PlusIcon, 
   CheckIcon,
@@ -8,7 +8,6 @@ import {
   ClockIcon,
   FlagIcon,
   EllipsisVerticalIcon,
-  XMarkIcon
 } from '@heroicons/react/24/outline'
 import { useTaskContext } from '../../context/TaskContext'
 import TaskModal from '../../components/Tasks/TaskModal'

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import  { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PlusIcon, EyeIcon, EyeSlashIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import { CalendarProvider, useCalendarContext } from '../../context/CalendarContext'

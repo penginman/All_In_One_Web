@@ -8,11 +8,10 @@ import {
   TrashIcon,
   FolderIcon,
   FolderOpenIcon,
-  TagIcon,
-  XMarkIcon
+  TagIcon
 } from '@heroicons/react/24/outline'
 import { useBookmarkContext } from '../../context/BookmarkContext'
-import { Bookmark, BookmarkGroup } from '../../types/bookmarks'
+import { Bookmark } from '../../types/bookmarks'
 import BookmarkModal from './BookmarkModal'
 
 interface BookmarkManagerProps {

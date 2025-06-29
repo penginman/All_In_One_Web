@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { 
   PlusIcon, 
   CheckIcon,
@@ -9,16 +9,14 @@ import {
   FlagIcon,
   Bars3Icon,
   XMarkIcon,
-  ChevronLeftIcon
 } from '@heroicons/react/24/outline'
 import { useTaskContext } from '../../context/TaskContext'
 import TaskModal from '../../components/Tasks/TaskModal'
 import Checkbox from '../../components/Common/Checkbox'
 import { Task } from '../../types/tasks'
 
-interface TaskMobileProps {}
-
-function TaskMobile({}: TaskMobileProps) {
+// interface TaskMobileProps {}
+function TaskMobile() {
   const { state, dispatch } = useTaskContext()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)

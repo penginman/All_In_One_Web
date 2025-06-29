@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useCalendarContext } from '../../context/CalendarContext'
 import { CalendarEvent } from '../../types/calendar'
@@ -9,7 +9,6 @@ interface WeekViewProps {
 
 function WeekView({ onEventClick }: WeekViewProps) {
   const { state, dispatch, allEvents } = useCalendarContext()
-  const [draggedEvent, setDraggedEvent] = useState<string | null>(null)
   const [hoveredDate, setHoveredDate] = useState<string | null>(null)
   const calendarRef = useRef<HTMLDivElement>(null)
 
@@ -35,17 +34,6 @@ function WeekView({ onEventClick }: WeekViewProps) {
   }
 
   const weekDates = getWeekDates(currentDate)
-
-  // 生成时间轴
-  const generateTimeSlots = () => {
-    const slots = []
-    for (let hour = 0; hour < 24; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`)
-    }
-    return slots
-  }
-
-  const timeSlots = generateTimeSlots()
 
   // 获取指定日期的定时事件
   const getTimedEventsForDate = (date: Date) => {
@@ -275,11 +263,13 @@ function WeekView({ onEventClick }: WeekViewProps) {
                       )}
                     </div>
                   ))}
+
                   {allDayEvents.length > (window.innerWidth < 640 ? 1 : 3) && (
                     <div className="text-xs text-gray-500 text-center py-0.5 rounded bg-gray-100/50 leading-none">
                       +{allDayEvents.length - (window.innerWidth < 640 ? 1 : 3)}
                     </div>
                   )}
+
                   {allDayEvents.length === 0 && window.innerWidth >= 1024 && (
                     <div className="text-xs text-gray-400 p-2 text-center opacity-50">
                       无全天事件
@@ -331,7 +321,7 @@ function WeekView({ onEventClick }: WeekViewProps) {
                   onMouseLeave={() => setHoveredDate(null)}
                 >
                   {/* 时间网格线 */}
-                  {activeTimeSlots.map((time, timeIndex) => (
+                  {activeTimeSlots.map((time) => (
                     <div
                       key={time}
                       className={`h-12 lg:h-16 border-b transition-colors ${
@@ -421,3 +411,4 @@ const getEventPosition = (event: CalendarEvent, activeTimeSlots: string[]) => {
 }
 
 export default WeekView
+

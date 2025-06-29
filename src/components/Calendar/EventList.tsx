@@ -1,6 +1,5 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { 
-  PlusIcon, 
   PencilIcon, 
   TrashIcon,
   CalendarIcon,
@@ -21,7 +20,7 @@ function EventList({
   onEventAdd, 
   onCollapse 
 }: EventListProps) {
-  const { state, dispatch, allEvents } = useCalendarContext()
+  const { dispatch, allEvents } = useCalendarContext()
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'today'>('all')
 
   // 只显示独立日程事件，不包括任务和习惯
@@ -47,9 +46,9 @@ function EventList({
           const eventDate = new Date(event.startDate)
           eventDate.setHours(0, 0, 0, 0)
           return eventDate >= today
-        }).sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+        }).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
       default:
-        return calendarEvents.sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+        return calendarEvents.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     }
   }
 
@@ -79,11 +78,13 @@ function EventList({
     }
   }
 
-  const formatDateRange = (startDate: Date, endDate: Date) => {
-    if (startDate.toDateString() === endDate.toDateString()) {
-      return formatDate(startDate)
+  const formatDateRange = (startDate: Date | string, endDate: Date | string) => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    if (start.toDateString() === end.toDateString()) {
+      return formatDate(start)
     } else {
-      return `${formatDate(startDate)} - ${formatDate(endDate)}`
+      return `${formatDate(start)} - ${formatDate(end)}`
     }
   }
 
@@ -124,7 +125,7 @@ function EventList({
           }].map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setFilter(key as any)}
+              onClick={() => setFilter(key as typeof filter)}
               className={`flex-shrink-0 px-1.5 lg:px-3 py-0.5 text-xs rounded transition-colors active:scale-95 ${
                 filter === key
                   ? 'bg-blue-100 text-blue-700'

@@ -87,17 +87,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // 加载字符串类型设置
     const settings = [
-      { key: 'app-theme', action: 'SET_THEME', values: ['light', 'dark'] },
-      { key: 'app-searchEngine', action: 'SET_SEARCH_ENGINE', values: ['google', 'bing'] },
-      { key: 'app-lastSyncTime', action: 'SET_LAST_SYNC_TIME' }
+      { key: 'app-theme', action: 'SET_THEME' as const, values: ['light', 'dark'] as const },
+      { key: 'app-searchEngine', action: 'SET_SEARCH_ENGINE' as const, values: ['google', 'bing'] as const },
+      { key: 'app-lastSyncTime', action: 'SET_LAST_SYNC_TIME' as const }
     ]
 
-    settings.forEach(({ key, action, values }) => {
+    settings.forEach(({ key, action }) => {
       try {
         const saved = localStorage.getItem(key)
         if (saved !== null) {
-          if (values && !values.includes(saved)) return
-          dispatch({ type: action as any, payload: saved })
+          if (action === 'SET_THEME' && (saved === 'light' || saved === 'dark')) {
+            dispatch({ type: 'SET_THEME', payload: saved })
+          } else if (action === 'SET_SEARCH_ENGINE' && (saved === 'google' || saved === 'bing')) {
+            dispatch({ type: 'SET_SEARCH_ENGINE', payload: saved })
+          } else if (action === 'SET_LAST_SYNC_TIME') {
+            dispatch({ type: 'SET_LAST_SYNC_TIME', payload: saved })
+          }
         }
       } catch (error) {
         console.warn(`Failed to load setting ${key}:`, error)
@@ -210,9 +215,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       })
 
       return result
-    } catch (error: any) {
+    } catch (error) {
       console.error('AppContext: Test connection error:', error)
-      const errorMessage = error.message || '连接测试出错'
+      const errorMessage = error instanceof Error ? error.message : '连接测试出错'
       
       dispatch({ type: 'SET_GIT_CONNECTED', payload: false })
       dispatch({ 
@@ -254,11 +259,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       dispatch({ type: 'SET_LAST_SYNC_TIME', payload: new Date().toISOString() })
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('同步到云端失败:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
       dispatch({ 
         type: 'SET_SYNC_STATUS', 
-        payload: { status: 'error', message: '同步到云端失败: ' + error.message } 
+        payload: { status: 'error', message: '同步到云端失败: ' + errorMessage } 
       })
     }
   }
@@ -298,11 +304,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         window.location.reload()
       }, 1000)
 
-    } catch (error: any) {
+    } catch (error) {
       console.error('从云端同步失败:', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
       dispatch({ 
         type: 'SET_SYNC_STATUS', 
-        payload: { status: 'error', message: '从云端同步失败: ' + error.message } 
+        payload: { status: 'error', message: '从云端同步失败: ' + errorMessage } 
       })
     }
   }

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { usePomodoroContext } from '../../context/PomodoroContext'
 import PomodoroTimer from '../../components/Pomodoro/PomodoroTimer'
 

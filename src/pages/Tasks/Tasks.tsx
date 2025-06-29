@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { TaskProvider } from '../../context/TaskContext'
 import TaskDesktop from './TaskDesktop'
 import TaskMobile from './TaskMobile'

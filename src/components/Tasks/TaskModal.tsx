@@ -177,7 +177,7 @@ function TaskModal({ isOpen, onClose, task, groupId }: TaskModalProps) {
                     <button
                       key={priority.value ?? 'none'}
                       type="button"
-                      onClick={() => setFormData({ ...formData, priority: priority.value as any })}
+                      onClick={() => setFormData({ ...formData, priority: priority.value as typeof formData.priority })}
                       className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
                         formData.priority === priority.value
                           ? priority.color
@@ -212,7 +212,7 @@ function TaskModal({ isOpen, onClose, task, groupId }: TaskModalProps) {
                 </label>
                 <select
                   value={formData.repeat}
-                  onChange={(e) => setFormData({ ...formData, repeat: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, repeat: e.target.value as 'none' | 'daily' | 'weekly' | 'monthly' })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 >
                   <option value="none">不重复</option>

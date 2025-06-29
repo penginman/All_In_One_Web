@@ -1,4 +1,3 @@
-import React, { useState } from 'react'
 import { 
   PencilSquareIcon, 
   TrashIcon, 
@@ -8,6 +7,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useHabitContext } from '../../context/HabitContext'
 import { Habit } from '../../types/habits'
+import  { useState } from 'react'
 
 interface HabitManagementViewProps {
   onEditHabit: (habit: Habit) => void
@@ -70,7 +70,7 @@ function HabitManagementView({ onEditHabit, onDeleteHabit }: HabitManagementView
             ].map(({ key, label, count }) => (
               <button
                 key={key}
-                onClick={() => setFilter(key as any)}
+                onClick={() => setFilter(key as typeof filter)}
                 className={`flex-1 lg:flex-none px-2 lg:px-3 py-1.5 lg:py-1 text-xs lg:text-sm rounded-lg transition-all duration-200 active:scale-95 ${
                   filter === key
                     ? 'bg-blue-100 text-blue-700 shadow-sm'
