@@ -28,7 +28,7 @@ function Sidebar() {
   return (
     <div 
       className={`fixed left-0 top-0 h-full bg-blue-50 border-r border-blue-100 transition-all duration-300 ease-in-out z-10 ${
-        state.sidebarCollapsed ? 'w-16' : 'w-40'
+        state.sidebarCollapsed ? 'w-14' : 'w-40'
       }`}
     >
       {/* Header */}

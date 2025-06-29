@@ -80,23 +80,23 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
   const [storedEvents, setStoredEvents] = useLocalStorage<CalendarEvent[]>('calendar-events', [])
   const taskContext = useTaskContext()
 
-  // 初始化时加载本地数据
+  // 初始化加载数据
   useEffect(() => {
     if (storedEvents.length > 0) {
       dispatch({ type: 'LOAD_EVENTS', payload: storedEvents })
     }
-  }, [])
+  }, []) // 空依赖，只在挂载时执行
 
-  // 保存事件到本地存储
+  // 自动保存事件
   useEffect(() => {
     setStoredEvents(state.events)
   }, [state.events, setStoredEvents])
 
-  // 合并所有事件（日程 + 任务 + 习惯）- 实时更新
+  // 合并所有事件（日程 + 任务 + 习惯）
   const allEvents = React.useMemo(() => {
     const events = [...state.events]
     
-    // 添加任务事件（包括有日期的任务，不管是否有具体时间）
+    // 添加任务事件
     if (state.showTasks && taskContext) {
       const taskEvents = taskContext.state.tasks
         .filter(task => !task.deletedAt && task.dueDate)
@@ -118,23 +118,6 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
         })
       events.push(...taskEvents)
     }
-    
-    // TODO: 添加习惯数据
-    // if (state.showHabits && habitContext) {
-    //   const habitEvents = habitContext.state.habits
-    //     .filter(habit => habit.isActive)
-    //     .map(habit => ({
-    //       id: `habit-${habit.id}`,
-    //       title: habit.name,
-    //       startDate: new Date(),
-    //       endDate: new Date(),
-    //       color: habit.color || '#10b981',
-    //       category: 'habit' as const,
-    //       sourceId: habit.id,
-    //       createdAt: habit.createdAt
-    //     }))
-    //   events.push(...habitEvents)
-    // }
     
     return events
   }, [state.events, state.showTasks, state.showHabits, taskContext?.state.tasks, taskContext?.state.groups])

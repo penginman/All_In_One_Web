@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react'
 import { BookmarkState, BookmarkAction, Bookmark, BookmarkGroup } from '../types/bookmarks'
 
 const STORAGE_KEY = 'bookmarks-data'
@@ -8,7 +8,7 @@ const initialState: BookmarkState = {
   groups: [
     {
       id: '1',
-      name: '默认分组',
+      name: '常用',
       color: '#3b82f6',
       order: 0,
       collapsed: false,
@@ -52,7 +52,7 @@ function bookmarkReducer(state: BookmarkState, action: BookmarkAction): Bookmark
         title: title || '新书签',
         url: url,
         description: '',
-        favicon: `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`,
+        favicon: `https://favicone.com${new URL(url).hostname}`,
         tags: [],
         groupId: groupId,
         order: targetGroupBookmarksCount,
@@ -123,7 +123,7 @@ function bookmarkReducer(state: BookmarkState, action: BookmarkAction): Bookmark
     }
 
     case 'DELETE_GROUP': {
-      // 将被删除分组的书签移动到默认分组
+      // 将被删除分组的书签移动到常用
       const updatedBookmarks = state.bookmarks.map(bookmark =>
         bookmark.groupId === action.payload
           ? { ...bookmark, groupId: '1', updatedAt: new Date() }
@@ -198,19 +198,18 @@ const BookmarkContext = createContext<BookmarkContextType | undefined>(undefined
 
 export function BookmarkProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(bookmarkReducer, initialState)
-  const [isLoaded, setIsLoaded] = React.useState(false)
+  const initializeRef = useRef(false)
 
-  // 从本地存储加载数据
+  // 初始化加载数据 - 只执行一次
   useEffect(() => {
-    const loadFromStorage = () => {
-      try {
-        const savedData = localStorage.getItem(STORAGE_KEY)
-        console.log('Raw saved data:', savedData)
-        
-        if (savedData) {
-          const { bookmarks, groups } = JSON.parse(savedData)
-          console.log('Parsed data:', { bookmarks, groups })
-          
+    if (initializeRef.current) return
+    initializeRef.current = true
+
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY)
+      if (savedData) {
+        const { bookmarks, groups } = JSON.parse(savedData)
+        if (bookmarks?.length > 0 || groups?.length > 0) {
           dispatch({
             type: 'LOAD_FROM_STORAGE',
             payload: {
@@ -219,36 +218,38 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
                 createdAt: new Date(b.createdAt),
                 updatedAt: new Date(b.updatedAt)
               })),
-              groups: (groups || []).map((g: any) => ({
+              groups: (groups || initialState.groups).map((g: any) => ({
                 ...g,
                 createdAt: new Date(g.createdAt)
               }))
             }
           })
         }
-      } catch (error) {
-        console.error('Failed to load bookmarks from storage:', error)
-      } finally {
-        setIsLoaded(true)
       }
+    } catch (error) {
+      console.error('Failed to load bookmarks:', error)
     }
-
-    loadFromStorage()
   }, [])
 
-  // 保存到本地存储
+  // 自动保存数据 - 防抖处理
   useEffect(() => {
-    if (!isLoaded) return // 避免在首次加载时覆盖数据
+    if (!initializeRef.current) return
     
-    const dataToSave = {
-      bookmarks: state.bookmarks,
-      groups: state.groups,
-      timestamp: new Date().toISOString()
-    }
-    
-    console.log('Saving to storage:', dataToSave)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
-  }, [state.bookmarks, state.groups, isLoaded])
+    const timeoutId = setTimeout(() => {
+      try {
+        const dataToSave = {
+          bookmarks: state.bookmarks,
+          groups: state.groups,
+          timestamp: new Date().toISOString()
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave))
+      } catch (error) {
+        console.error('Failed to save bookmarks:', error)
+      }
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
+  }, [state.bookmarks, state.groups])
 
   const getAllTags = () => {
     const allTags = new Set<string>()
@@ -271,8 +272,6 @@ export function BookmarkProvider({ children }: { children: React.ReactNode }) {
       return matchesSearch && matchesTags
     })
   }
-
-  console.log('Current state:', { bookmarks: state.bookmarks.length, groups: state.groups.length })
 
   return (
     <BookmarkContext.Provider value={{ state, dispatch, getAllTags, getFilteredBookmarks }}>

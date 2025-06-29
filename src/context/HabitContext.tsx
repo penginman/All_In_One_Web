@@ -143,9 +143,10 @@ export function HabitProvider({ children }: { children: ReactNode }) {
   const [storedRecords, setStoredRecords] = useLocalStorage<HabitRecord[]>('habit-records', [])
   const [storedNotes, setStoredNotes] = useLocalStorage<DailyNote[]>('daily-notes', [])
 
-  // Load data on mount
+  // 初始化加载数据
   useEffect(() => {
-    if (storedHabits.length > 0 || storedRecords.length > 0 || storedNotes.length > 0) {
+    const hasData = storedHabits.length > 0 || storedRecords.length > 0 || storedNotes.length > 0
+    if (hasData) {
       dispatch({
         type: 'LOAD_DATA',
         payload: {
@@ -155,20 +156,14 @@ export function HabitProvider({ children }: { children: ReactNode }) {
         }
       })
     }
-  }, [])
+  }, []) // 空依赖，只在挂载时执行
 
-  // Save data when state changes
+  // 自动保存数据
   useEffect(() => {
     setStoredHabits(state.habits)
-  }, [state.habits, setStoredHabits])
-
-  useEffect(() => {
     setStoredRecords(state.records)
-  }, [state.records, setStoredRecords])
-
-  useEffect(() => {
     setStoredNotes(state.dailyNotes)
-  }, [state.dailyNotes, setStoredNotes])
+  }, [state.habits, state.records, state.dailyNotes, setStoredHabits, setStoredRecords, setStoredNotes])
 
   const isHabitCompletedOnDate = (habitId: string, date: Date) => {
     return state.records.some(
@@ -257,10 +252,23 @@ export function HabitProvider({ children }: { children: ReactNode }) {
   const getDayProgress = (date: Date) => {
     const activeHabits = state.habits.filter(habit => {
       if (!habit.isActive) return false
-      if (date < habit.startDate) return false
-      if (habit.endDate && date > habit.endDate) return false
       
-      const dayOfWeek = date.getDay()
+      // 标准化日期进行比较，避免时区问题
+      const checkDate = new Date(date)
+      checkDate.setHours(12, 0, 0, 0) // 设置为中午避免时区问题
+      
+      const habitStartDate = new Date(habit.startDate)
+      habitStartDate.setHours(0, 0, 0, 0)
+      
+      const habitEndDate = habit.endDate ? new Date(habit.endDate) : null
+      if (habitEndDate) {
+        habitEndDate.setHours(23, 59, 59, 999)
+      }
+      
+      if (checkDate < habitStartDate) return false
+      if (habitEndDate && checkDate > habitEndDate) return false
+      
+      const dayOfWeek = checkDate.getDay()
       if (habit.frequency === 'weekly' && !habit.weekdays?.includes(dayOfWeek)) {
         return false
       }
@@ -268,11 +276,14 @@ export function HabitProvider({ children }: { children: ReactNode }) {
       return true
     })
 
-    if (activeHabits.length === 0) return 100
+
+
+    if (activeHabits.length === 0) return 0
 
     const completedHabits = activeHabits.filter(habit =>
       isHabitCompletedOnDate(habit.id, date)
     )
+
 
     return Math.round((completedHabits.length / activeHabits.length) * 100)
   }

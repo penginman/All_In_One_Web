@@ -154,9 +154,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const [storedTasks, setStoredTasks] = useLocalStorage<Task[]>('tasks', [])
   const [storedGroups, setStoredGroups] = useLocalStorage<TaskGroup[]>('taskGroups', defaultGroups)
 
-  // 初始化时加载本地数据
+  // 初始化加载数据
   useEffect(() => {
-    if (storedTasks.length > 0 || storedGroups.length > 0) {
+    if (storedTasks.length > 0 || storedGroups.length !== defaultGroups.length) {
       dispatch({
         type: 'LOAD_DATA',
         payload: {
@@ -165,16 +165,13 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         }
       })
     }
-  }, [])
+  }, []) // 空依赖，只在挂载时执行
 
-  // 数据变化时保存到本地存储
+  // 自动保存数据
   useEffect(() => {
     setStoredTasks(state.tasks)
-  }, [state.tasks, setStoredTasks])
-
-  useEffect(() => {
     setStoredGroups(state.groups)
-  }, [state.groups, setStoredGroups])
+  }, [state.tasks, state.groups, setStoredTasks, setStoredGroups])
 
   return (
     <TaskContext.Provider value={{ state, dispatch }}>

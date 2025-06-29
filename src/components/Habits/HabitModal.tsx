@@ -113,10 +113,10 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-          <h3 className="text-lg font-semibold text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start lg:items-center justify-center z-50 p-2 lg:p-4 pt-4 lg:pt-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] lg:max-h-[80vh] flex flex-col mt-4 lg:mt-0">
+        <div className="flex items-center justify-between p-3 lg:p-4 border-b flex-shrink-0">
+          <h3 className="text-base lg:text-lg font-semibold text-gray-900">
             {habit ? '编辑习惯' : '新建习惯'}
           </h3>
           <button
@@ -127,8 +127,8 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-3 lg:space-y-4">
             {/* 习惯名称 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -139,7 +139,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="例如：阅读30分钟"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base"
                 required
               />
             </div>
@@ -153,7 +153,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, frequency: 'daily', weekdays: [] })}
-                  className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
+                  className={`flex-1 px-3 lg:px-4 py-2 rounded-lg border transition-colors text-sm lg:text-base ${
                     formData.frequency === 'daily'
                       ? 'bg-blue-100 border-blue-500 text-blue-700'
                       : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -164,7 +164,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, frequency: 'weekly' })}
-                  className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
+                  className={`flex-1 px-3 lg:px-4 py-2 rounded-lg border transition-colors text-sm lg:text-base ${
                     formData.frequency === 'weekly'
                       ? 'bg-blue-100 border-blue-500 text-blue-700'
                       : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -187,7 +187,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
                       key={day.value}
                       type="button"
                       onClick={() => handleWeekdayToggle(day.value)}
-                      className={`px-2 py-1 text-sm rounded transition-colors ${
+                      className={`px-2 py-2 text-sm rounded transition-colors ${
                         formData.weekdays.includes(day.value)
                           ? 'bg-blue-100 border-blue-500 text-blue-700 border'
                           : 'bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100 border'
@@ -209,7 +209,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
                 type="date"
                 value={formData.startDate}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base"
                 required
               />
             </div>
@@ -238,7 +238,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
                   value={formData.endDate}
                   onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   min={formData.startDate}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base"
                 />
               )}
             </div>
@@ -248,13 +248,13 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 颜色
               </label>
-              <div className="flex space-x-2 flex-wrap">
+              <div className="flex space-x-2 flex-wrap gap-2">
                 {habitColors.map(color => (
                   <button
                     key={color}
                     type="button"
                     onClick={() => setFormData({ ...formData, color })}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${
+                    className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full border-2 transition-all ${
                       formData.color === color 
                         ? 'border-gray-800 scale-110' 
                         : 'border-gray-300 hover:border-gray-400'
@@ -267,17 +267,17 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
           </div>
 
           {/* 按钮区域 */}
-          <div className="flex space-x-3 p-4 border-t bg-gray-50 flex-shrink-0">
+          <div className="flex space-x-3 p-3 lg:p-4 border-t bg-gray-50 flex-shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2.5 lg:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-base"
             >
               取消
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="flex-1 px-4 py-2.5 lg:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-base"
             >
               {habit ? '更新' : '创建'}
             </button>

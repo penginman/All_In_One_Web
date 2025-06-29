@@ -10,26 +10,29 @@ import Settings from './pages/Settings/Settings'
 import { AppProvider } from './context/AppContext'
 import { TaskProvider } from './context/TaskContext'
 import { CalendarProvider } from './context/CalendarContext'
+import { HabitProvider } from './context/HabitContext'
 import { BookmarkProvider } from './context/BookmarkContext'
 
 function App() {
   return (
     <AppProvider>
       <TaskProvider>
-        <CalendarProvider>
-          <BookmarkProvider>
-            <Layout>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/learning" element={<Learning />} />
-                <Route path="/tasks" element={<Tasks />} />
-                <Route path="/calendar" element={<Calendar />} />
-                <Route path="/habits" element={<Habits />} />
-                <Route path="/settings" element={<Settings />} />
-              </Routes>
-            </Layout>
-          </BookmarkProvider>
-        </CalendarProvider>
+        <HabitProvider>
+          <CalendarProvider>
+            <BookmarkProvider>
+              <Layout>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/learning" element={<Learning />} />
+                  <Route path="/tasks" element={<Tasks />} />
+                  <Route path="/calendar" element={<Calendar />} />
+                  <Route path="/habits" element={<Habits />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </Layout>
+            </BookmarkProvider>
+          </CalendarProvider>
+        </HabitProvider>
       </TaskProvider>
     </AppProvider>
   )

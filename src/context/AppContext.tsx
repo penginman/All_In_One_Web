@@ -73,82 +73,62 @@ const AppContext = createContext<{
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState)
 
-  // 初始化所有设置
+  // 初始化设置
   useEffect(() => {
-    console.log('Initializing app settings...')
-    
-    // 加载 Git 配置
-    const config = gitSyncClient.loadConfig()
-    if (config) {
-      console.log('Git config loaded:', { ...config, token: '***' })
-      dispatch({ type: 'SET_GIT_CONFIG', payload: config })
-      
-      // 延迟自动测试连接，避免与页面加载冲突
-      setTimeout(() => {
-        testGitConnection().then(result => {
-          if (result.success) {
-            console.log('Git sync auto-connected successfully')
-          } else {
-            console.log('Git sync auto-connection failed:', result.message)
-          }
-        }).catch(error => {
-          console.error('Auto test connection error:', error)
-        })
-      }, 1000)
+    const initializeSettings = () => {
+      // 加载Git配置
+      const config = gitSyncClient.loadConfig()
+      if (config) {
+        dispatch({ type: 'SET_GIT_CONFIG', payload: config })
+        
+        // 延迟测试连接
+        setTimeout(() => {
+          testGitConnection().catch(console.error)
+        }, 1000)
+      }
+
+      // 加载其他设置
+      const settings = [
+        { key: 'app-theme', action: 'SET_THEME', values: ['light', 'dark'] },
+        { key: 'app-searchEngine', action: 'SET_SEARCH_ENGINE', values: ['google', 'bing'] },
+        { key: 'app-autoSync', action: 'SET_AUTO_SYNC', parser: JSON.parse },
+        { key: 'app-lastSyncTime', action: 'SET_LAST_SYNC_TIME' },
+        { key: 'app-sidebarCollapsed', action: 'TOGGLE_SIDEBAR', parser: JSON.parse }
+      ]
+
+      settings.forEach(({ key, action, values, parser }) => {
+        const saved = localStorage.getItem(key)
+        if (saved !== null) {
+          let value = parser ? parser(saved) : saved
+          if (values && !values.includes(value)) return
+          
+          dispatch({ type: action as any, payload: value })
+        }
+      })
     }
 
-    // 从本地存储加载其他设置
-    const savedTheme = localStorage.getItem('app-theme')
-    if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
-      dispatch({ type: 'SET_THEME', payload: savedTheme })
-    }
+    initializeSettings()
+  }, []) // 空依赖，只在挂载时执行
 
-    const savedSearchEngine = localStorage.getItem('app-searchEngine') 
-    if (savedSearchEngine && (savedSearchEngine === 'google' || savedSearchEngine === 'bing')) {
-      dispatch({ type: 'SET_SEARCH_ENGINE', payload: savedSearchEngine })
-    }
-
-    const savedAutoSync = localStorage.getItem('app-autoSync')
-    if (savedAutoSync !== null) {
-      dispatch({ type: 'SET_AUTO_SYNC', payload: JSON.parse(savedAutoSync) })
-    }
-
-    const savedLastSync = localStorage.getItem('app-lastSyncTime')
-    if (savedLastSync) {
-      dispatch({ type: 'SET_LAST_SYNC_TIME', payload: savedLastSync })
-    }
-
-    const savedSidebarCollapsed = localStorage.getItem('app-sidebarCollapsed')
-    if (savedSidebarCollapsed !== null) {
-      dispatch({ type: 'TOGGLE_SIDEBAR' })
-    }
-
-    console.log('App settings initialized')
-  }, [])
-
-  // 保存设置到本地存储
+  // 自动保存设置
   useEffect(() => {
-    localStorage.setItem('app-theme', state.theme)
-  }, [state.theme])
+    const settingsToSave = [
+      { key: 'app-theme', value: state.theme },
+      { key: 'app-searchEngine', value: state.searchEngine },
+      { key: 'app-autoSync', value: state.autoSync, stringify: true },
+      { key: 'app-sidebarCollapsed', value: state.sidebarCollapsed, stringify: true }
+    ]
 
-  useEffect(() => {
-    localStorage.setItem('app-searchEngine', state.searchEngine)
-  }, [state.searchEngine])
-
-  useEffect(() => {
-    localStorage.setItem('app-autoSync', JSON.stringify(state.autoSync))
-  }, [state.autoSync])
+    settingsToSave.forEach(({ key, value, stringify }) => {
+      localStorage.setItem(key, stringify ? JSON.stringify(value) : value as string)
+    })
+  }, [state.theme, state.searchEngine, state.autoSync, state.sidebarCollapsed])
 
   useEffect(() => {
     if (state.lastSyncTime) {
       localStorage.setItem('app-lastSyncTime', state.lastSyncTime)
     }
   }, [state.lastSyncTime])
-
-  useEffect(() => {
-    localStorage.setItem('app-sidebarCollapsed', JSON.stringify(state.sidebarCollapsed))
-  }, [state.sidebarCollapsed])
-
 
   const testGitConnection = async () => {
     if (!state.gitConfig) {

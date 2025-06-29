@@ -46,3 +46,13 @@ export type BookmarkAction =
   | { type: 'IMPORT_BOOKMARKS'; payload: Bookmark[] }
   | { type: 'LOAD_FROM_STORAGE'; payload: { bookmarks: Bookmark[]; groups: BookmarkGroup[] } }
   | { type: 'ADD_BROWSER_BOOKMARK'; payload: { title: string; url: string; groupId: string } }
+
+export interface SearchEngine {
+  key: string
+  name: string
+  url: string
+  icon: string
+  color: string
+}
+
+export type SearchEngineKey = 'google' | 'bing' | 'bilibili' | 'taobao' | 'custom'

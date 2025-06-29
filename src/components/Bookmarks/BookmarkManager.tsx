@@ -79,10 +79,10 @@ function BookmarkManager({ onBookmarkClick }: BookmarkManagerProps) {
   // 删除分组
   const handleDeleteGroup = (groupId: string) => {
     if (groupId === '1') {
-      alert('默认分组不能删除')
+      alert('常用不能删除')
       return
     }
-    if (window.confirm('确定要删除这个分组吗？分组中的书签将移动到默认分组。')) {
+    if (window.confirm('确定要删除这个分组吗？分组中的书签将移动到常用。')) {
       dispatch({ type: 'DELETE_GROUP', payload: groupId })
       setGroupMenuOpen(null)
     }
