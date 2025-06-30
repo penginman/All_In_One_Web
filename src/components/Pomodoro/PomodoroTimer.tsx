@@ -84,7 +84,7 @@ function PomodoroTimer() {
               cy="50"
               r="45"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="4"
               fill="none"
               className="text-gray-200"
             />
@@ -93,7 +93,7 @@ function PomodoroTimer() {
               cy="50"
               r="45"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="4"
               fill="none"
               strokeDasharray={`${2 * Math.PI * 45}`}
               strokeDashoffset={`${2 * Math.PI * 45 * (1 - getCurrentProgress() / 100)}`}

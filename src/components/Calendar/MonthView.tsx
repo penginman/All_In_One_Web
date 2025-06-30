@@ -327,7 +327,7 @@ function MonthView({ onEventClick, onDateDoubleClick }: MonthViewProps) {
               </div>
               
               {/* 事件列表 - 手机端显示更紧凑 */}
-              <div className="space-y-0.5">
+              <div className="space-y-0.8">
                 {events.slice(0, window.innerWidth < 640 ? 1 : 2).map(event => (
                   <div
                     key={event.id}
