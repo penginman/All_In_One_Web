@@ -33,7 +33,7 @@ function Sidebar() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-blue-100 h-16">
         {!state.sidebarCollapsed && (
-          <h1 className="text-lg font-semibold text-blue-800 truncate">效率工具</h1>
+          <h1 className="text-lg font-semibold text-blue-800 truncate">一站能流</h1>
         )}
         <button
           onClick={() => dispatch({ type: 'TOGGLE_SIDEBAR' })}

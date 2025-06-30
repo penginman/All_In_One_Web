@@ -146,7 +146,9 @@ function Home() {
     <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0">
       {/* 页面标题 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">首页</h1>
+        {/* 网站图标 */}
+        <img src="/icon/总图标.png" alt="网站图标" className="w-15 h-15" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">一站能流</h1>
         <div className="text-sm text-gray-500">
           {new Date().toLocaleDateString('zh-CN', { 
             year: 'numeric', 
