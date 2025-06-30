@@ -140,10 +140,10 @@ function TaskDesktop() {
     setDragOverGroup(null)
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-  }
+  // const handleDragOver = (e: React.DragEvent) => {
+  //   e.preventDefault()
+  //   e.dataTransfer.dropEffect = 'move'
+  // }
 
   const handleGroupDragOver = (e: React.DragEvent, groupId: string | null) => {
     e.preventDefault()
