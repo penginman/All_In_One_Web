@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script type="text/javascript">
+      const path = window.location.pathname;
+      const repo = '/All_In_One_Web';
+      if (path.startsWith(repo)) {
+        const newPath = path.slice(repo.length);
+        // 将路径重定向到哈希路由格式，例如 /All_In_One_Web/#/tasks
+        window.location.replace(repo + '/#' + newPath + window.location.search + window.location.hash);
+      }
+    </script>
+  </head>
+  <body>
+  </body>
+</html>

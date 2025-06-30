@@ -39,7 +39,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
     startDate: '',
     endDate: '',
     hasEndDate: false,
-    color: habitColors[0]
+    color: habitColors[1]
   })
 
   useEffect(() => {
@@ -62,7 +62,7 @@ function HabitModal({ isOpen, onClose, habit }: HabitModalProps) {
         startDate: today,
         endDate: '',
         hasEndDate: false,
-        color: habitColors[0]
+        color: habitColors[1]
       })
     }
   }, [habit, isOpen])

@@ -147,7 +147,7 @@ function Home() {
       {/* 页面标题 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         {/* 网站图标 */}
-        <img src="icon/总图标.png" alt="网站图标" className="w-15 h-15" />
+        <img src={`${import.meta.env.BASE_URL}icon/总图标.png`} alt="网站图标" className="w-15 h-15" />
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">一站能流</h1>
         <div className="text-sm text-gray-500">
           {new Date().toLocaleDateString('zh-CN', { 

@@ -22,6 +22,9 @@ function TaskDesktop() {
   const [showNewGroupInput, setShowNewGroupInput] = useState(false)
   const [groupMenuOpen, setGroupMenuOpen] = useState<string | null>(null)
 
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null)
+  const [dragOverGroup, setDragOverGroup] = useState<string | null>(null)
+
   // 过滤任务
   const filteredTasks = state.tasks.filter(task => {
     if (state.selectedGroupId && task.groupId !== state.selectedGroupId) {
@@ -124,6 +127,55 @@ function TaskDesktop() {
     }
   }
 
+  // 2. 添加拖拽处理函数
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    if (task.deletedAt) return
+    setDraggedTask(task)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', task.id)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTask(null)
+    setDragOverGroup(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleGroupDragOver = (e: React.DragEvent, groupId: string | null) => {
+    e.preventDefault()
+    setDragOverGroup(groupId)
+  }
+
+  const handleGroupDragLeave = (e: React.DragEvent) => {
+    // 只有当离开整个分组区域时才清除高亮
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverGroup(null)
+    }
+  }
+
+  const handleGroupDrop = (e: React.DragEvent, targetGroupId: string | null) => {
+    e.preventDefault()
+    if (!draggedTask) return
+    
+    const actualTargetGroupId = targetGroupId || '1' // 默认分组
+    
+    if (draggedTask.groupId !== actualTargetGroupId) {
+      dispatch({
+        type: 'UPDATE_TASK',
+        payload: {
+          id: draggedTask.id,
+          updates: { groupId: actualTargetGroupId }
+        }
+      })
+    }
+    
+    setDraggedTask(null)
+    setDragOverGroup(null)
+  }
   return (
     <div className="flex h-[calc(100vh-6rem)] relative">
       {/* 左侧分组栏 */}
@@ -133,37 +185,51 @@ function TaskDesktop() {
             <h2 className="font-semibold text-gray-900 mb-3">分组</h2>
             
             {/* 分组列表 */}
-            <div className="space-y-1">
+            <div
+              onDragOver={(e) => handleGroupDragOver(e, null)}
+              onDragLeave={handleGroupDragLeave}
+              onDrop={(e) => handleGroupDrop(e, '1')} // 拖到"所有任务"时移动到默认分组
+            >
               <button
                 onClick={() => dispatch({ type: 'SELECT_GROUP', payload: null })}
                 className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                   state.selectedGroupId === null
                     ? 'bg-blue-100 text-blue-700'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                } `}
               >
                 所有任务
               </button>
+            </div>
               
               {state.groups.map(group => (
-                <div key={group.id} className="relative">
-                  <button
-                    onClick={() => dispatch({ type: 'SELECT_GROUP', payload: group.id })}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center ${
-                      state.selectedGroupId === group.id
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                <div 
+                    key={group.id} 
+                    className="relative"
+                    onDragOver={(e) => handleGroupDragOver(e, group.id)}
+                    onDragLeave={handleGroupDragLeave}
+                    onDrop={(e) => handleGroupDrop(e, group.id)}
                   >
-                    <div 
-                      className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
-                      style={{ backgroundColor: group.color }}
-                    />
-                    <span className="flex-1 truncate">{group.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">
-                      {state.tasks.filter(t => t.groupId === group.id && !t.deletedAt && !t.completed).length}
-                    </span>
-                  </button>
+                    <button
+                      onClick={() => dispatch({ type: 'SELECT_GROUP', payload: group.id })}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center ${
+                        state.selectedGroupId === group.id
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      } ${
+                        dragOverGroup === group.id ? 'ring-2 ring-blue-400 bg-blue-50' : ''
+                      }`}
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
+                        style={{ backgroundColor: group.color }}
+                      />
+                      <span className="flex-1 truncate">{group.name}</span>
+                      <span className="text-xs text-gray-500 ml-2">
+                        {state.tasks.filter(t => t.groupId === group.id && !t.deletedAt && !t.completed).length}
+                      </span>
+                    </button>
+                    
                   
                   {/* 分组菜单 */}
                   {group.id !== '1' && (
@@ -228,7 +294,6 @@ function TaskDesktop() {
               </button>
             )}
           </div>
-        </div>
 
         {/* 筛选选项 */}
         <div className="p-4 border-t border-gray-200">
@@ -314,8 +379,16 @@ function TaskDesktop() {
                 return (
                   <div
                     key={task.id}
-                    className={`bg-white rounded-lg border border-gray-200 p-4 transition-all ${
-                      task.deletedAt ? 'opacity-60' : 'hover:shadow-md cursor-pointer'
+                    draggable={!task.deletedAt}
+                    onDragStart={(e) => handleDragStart(e, task)}
+                    onDragEnd={handleDragEnd}
+                    className={`group bg-white rounded-lg border border-gray-200 p-4 transition-all ${
+                      task.deletedAt ? 'opacity-60' : 'hover:shadow-md cursor-pointer '
+                    } ${ 
+                      // 拖拽时，缩放和透明度变化，倾斜
+                      draggedTask?.id === task.id ? 'opacity-30 scale-95 rotate-1' : ''
+                    } ${
+                      !task.deletedAt ? 'cursor-move' : ''
                     }`}
                     onClick={() => !task.deletedAt && handleEditTask(task)}
                   >
@@ -340,13 +413,20 @@ function TaskDesktop() {
                       {/* 任务内容 */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">  
                             <h3 className={`font-medium ${
                               task.completed ? 'line-through text-gray-500' : 'text-gray-900'
                             }`}>
                               {task.title}
                             </h3>
-                            
+                                {!task.deletedAt && (
+                                  <div className="flex items-center gap-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                    </svg>
+                                    <span className="text-xs">拖拽移动</span>
+                                  </div>
+                                )}
                             {/* 分组标签 */}
                             {!state.selectedGroupId && taskGroup && (
                               <div className="mt-2">
