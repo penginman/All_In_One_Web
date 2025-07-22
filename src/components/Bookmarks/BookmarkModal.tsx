@@ -106,7 +106,7 @@ function BookmarkModal({ isOpen, onClose, bookmark, groupId }: BookmarkModalProp
       tags: formData.tags,
       groupId: formData.groupId,
       order: bookmark?.order ?? state.bookmarks.filter(b => b.groupId === formData.groupId).length,
-      favicon: `https://favicone.com${new URL(formData.url).hostname}`
+      favicon: `https://www.google.com/s2/favicons?sz=64&domain_url=${new URL(formData.url).hostname}`
     }
 
     if (bookmark) {
