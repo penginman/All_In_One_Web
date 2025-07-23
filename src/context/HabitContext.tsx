@@ -231,38 +231,6 @@ export function HabitProvider({ children }: { children: ReactNode }) {
     console.log('HabitContext: Data saved automatically')
   }, [state.habits, state.records, state.dailyNotes, setStoredData])
 
-  // 监听来自云端同步的数据更新
-  useEffect(() => {
-    const handleStorageChange = (event: CustomEvent | StorageEvent) => {
-      if ('detail' in event && event.detail?.key === 'habit-data') {
-        // 来自云端同步的更新
-        try {
-          const newData = JSON.parse(event.detail.newValue)
-          console.log('HabitContext: Received cloud sync update')
-          dispatch({ type: 'IMPORT_DATA', payload: newData })
-        } catch (error) {
-          console.error('HabitContext: Failed to parse cloud sync data:', error)
-        }
-      } else if (event instanceof StorageEvent && event.key === 'habit-data' && event.newValue) {
-        // 来自其他标签页的更新
-        try {
-          const newData = JSON.parse(event.newValue)
-          console.log('HabitContext: Received cross-tab update')
-          dispatch({ type: 'IMPORT_DATA', payload: newData })
-        } catch (error) {
-          console.error('HabitContext: Failed to parse cross-tab data:', error)
-        }
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange as EventListener)
-    window.addEventListener('storage', handleStorageChange as EventListener)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange as EventListener)
-      window.removeEventListener('storage', handleStorageChange as EventListener)
-    }
-  }, [])
 
   const isHabitCompletedOnDate = (habitId: string, date: Date) => {
     return state.records.some(

@@ -180,15 +180,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // 新增：获取当前存储快照
+  // 修改：获取当前存储快照 - 包含所有功能模块的数据
   const getStorageSnapshot = useCallback(() => {
-    const storageData: Record<string, any> = {}
+    const storageData: Record<string, string> = {}
     
-    // 获取所有需要同步的数据
+    // 获取所有需要同步的数据 - 根据实际使用的 localStorage 键名
     const keysToWatch = [
-      'tasks', 'habits', 'bookmarks', 
-      'calendar-events', 'pomodoro-stats', 
-      'app-settings'
+      // 任务相关
+      'tasks', 'taskGroups',
+      
+      // 习惯相关
+      'habit-data',
+      
+      // 书签相关
+      'bookmarks-data',
+      
+      // 日历相关
+      'calendar-events',
+      
+      // 番茄钟相关
+      'pomodoro-stats', 'pomodoro-data', 'pomodoro-sessions', 'pomodoro-settings',
+      
+      // 应用设置
+      'app-settings', 'app-theme', 'app-searchEngine', 'app-autoSync', 'app-sidebarCollapsed',
+      
+      // 搜索引擎相关
+      'search-engines', 'current-search-engine', 'custom-search-engines',
+      
+      // 其他可能的数据
+      'user-preferences', 'notifications', 'reminders'
     ]
     
     keysToWatch.forEach(key => {
@@ -201,15 +221,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return JSON.stringify(storageData)
   }, [])
 
-  // 新增：检测存储变化
+  // 修改：检测存储变化 - 增加更详细的日志
   const checkStorageChanges = useCallback(() => {
     const currentSnapshot = getStorageSnapshot()
     const hasChanged = currentSnapshot !== storageSnapshotRef.current
     
     if (hasChanged && storageSnapshotRef.current !== '') {
-      console.log('AppContext: Storage changes detected')
-      dispatch({ type: 'SET_PENDING_CHANGES', payload: true })
-      dispatch({ type: 'SET_LAST_CHANGE_TIME', payload: Date.now() })
+      // 找出具体哪些键发生了变化
+      try {
+        const oldData = JSON.parse(storageSnapshotRef.current)
+        const newData = JSON.parse(currentSnapshot)
+        
+        const changedKeys: string[] = []
+        
+        // 检查所有键的变化
+        const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)])
+        allKeys.forEach(key => {
+          if (oldData[key] !== newData[key]) {
+            changedKeys.push(key)
+          }
+        })
+        
+        console.log('AppContext: Storage changes detected in keys:', changedKeys)
+        
+        dispatch({ type: 'SET_PENDING_CHANGES', payload: true })
+        dispatch({ type: 'SET_LAST_CHANGE_TIME', payload: Date.now() })
+      } catch (error) {
+        console.log('AppContext: Storage changes detected (parse error)', error)
+        dispatch({ type: 'SET_PENDING_CHANGES', payload: true })
+        dispatch({ type: 'SET_LAST_CHANGE_TIME', payload: Date.now() })
+      }
     }
     
     storageSnapshotRef.current = currentSnapshot
@@ -267,12 +308,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     autoSyncIntervalRef.current = setInterval(() => {
       const hasChanges = checkStorageChanges()
-      
-      // 直接检查当前状态，而不是通过依赖
-      const currentState = {
-        pendingChanges: storageSnapshotRef.current !== getStorageSnapshot(),
-        lastChangeTime: Date.now()
-      }
       
       // 如果有未处理的变化且超过延迟时间，执行自动同步
       if (hasChanges) {

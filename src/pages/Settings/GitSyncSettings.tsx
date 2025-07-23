@@ -37,7 +37,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
   const [cloudFiles, setCloudFiles] = useState<GitFile[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [showGitConfig, setShowGitConfig] = useState(false) // 改为配置表单的折叠状态
-  const [hasAutoTested, setHasAutoTested] = useState(false)
+  // const [hasAutoTested, setHasAutoTested] = useState(false)
   const [hasLoadedFiles, setHasLoadedFiles] = useState(false)
 
   // 加载云端文件列表 - 移除有问题的依赖项
@@ -184,7 +184,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
         branch: 'main' 
       })
       setCloudFiles([])
-      setHasAutoTested(false) // 重置自动测试状态
+      // setHasAutoTested(false) // 重置自动测试状态
       setHasLoadedFiles(false) // 重置文件加载状态
     }
   }

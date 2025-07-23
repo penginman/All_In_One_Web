@@ -106,7 +106,8 @@ export class SearchEngineManager {
       const name = key.slice(7)
       return this.getCustomEngineByName(name)
     }
-    return DEFAULT_SEARCH_ENGINES.find(e => e.key === key) | null
+    const found = DEFAULT_SEARCH_ENGINES.find(e => e.key === key)
+    return found ? found : null
   }
 
   static getSearchUrl(query: string, engineKey?: SearchEngineKey): string {
@@ -132,7 +133,6 @@ function Home() {
   const [showCustomEngineForm, setShowCustomEngineForm] = useState(false)
   const [customEngine, setCustomEngine] = useState({ name: '', url: 'https://example.com/search?q={query}', icon: '🔍' })
   const [currentEngineKey, setCurrentEngineKey] = useState<SearchEngineKey>(SearchEngineManager.getCurrentEngine())
-  const [customEngines, setCustomEngines] = useState<SearchEngine[]>(SearchEngineManager.getCustomEngines())
   const inputRef = useRef<HTMLInputElement>(null)
 
   // 获取当前搜索引擎和可用引擎列表
@@ -141,7 +141,8 @@ function Home() {
 
   // 新增：同步自定义引擎
   useEffect(() => {
-    setCustomEngines(SearchEngineManager.getCustomEngines())
+    // setCustomEngines(SearchEngineManager.getCustomEngines())
+    // 不再需要同步 customEngines
   }, [showCustomEngineForm])
 
   const handleSearch = () => {
@@ -180,7 +181,7 @@ function Home() {
       color: 'bg-gray-500'
     }
     SearchEngineManager.addCustomEngine(newEngine)
-    setCustomEngines(SearchEngineManager.getCustomEngines())
+    // setCustomEngines(SearchEngineManager.getCustomEngines()) // 移除
     setCurrentEngineKey(`custom:${customEngine.name}` as SearchEngineKey)
     SearchEngineManager.setCurrentEngine(`custom:${customEngine.name}` as SearchEngineKey)
     setShowCustomEngineForm(false)
@@ -190,7 +191,7 @@ function Home() {
   // 删除指定自定义引擎
   const handleRemoveCustomEngine = (name: string) => {
     SearchEngineManager.removeCustomEngineByName(name)
-    setCustomEngines(SearchEngineManager.getCustomEngines())
+    // setCustomEngines(SearchEngineManager.getCustomEngines()) // 移除
     // 如果当前引擎被删，切回 google
     if (currentEngineKey === `custom:${name}`) {
       setCurrentEngineKey('google')
