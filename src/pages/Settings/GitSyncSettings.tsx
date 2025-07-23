@@ -11,7 +11,10 @@ import {
   CodeBracketIcon,
   ShieldCheckIcon,
   ChevronDownIcon,
-  ChevronUpIcon
+  ChevronUpIcon,
+  // 新增图标
+  BoltIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline'
 import { useAppContext } from '../../context/AppContext'
 import { gitSyncClient, GitFile } from '../../utils/gitSync'
@@ -34,7 +37,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
   const [cloudFiles, setCloudFiles] = useState<GitFile[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [showGitConfig, setShowGitConfig] = useState(false) // 改为配置表单的折叠状态
-  const [hasAutoTested, setHasAutoTested] = useState(false)
+  // const [hasAutoTested, setHasAutoTested] = useState(false)
   const [hasLoadedFiles, setHasLoadedFiles] = useState(false)
 
   // 加载云端文件列表 - 移除有问题的依赖项
@@ -95,63 +98,10 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
     }
   }, [state.gitConfig, formData.token])
 
-  // 自动测试连接 - 完全重构
-  useEffect(() => {
-    // 只监听gitConfig的存在性，避免复杂的依赖
-    if (state.gitConfig && !hasAutoTested) {
-      console.log('GitSyncSettings: Config detected, setting up auto test...')
-      setHasAutoTested(true)
-      
-      // 使用更短的延迟，避免被清理
-      const timer = setTimeout(async () => {
-        console.log('GitSyncSettings: Executing auto test...')
-        
-        // 检查是否已经连接，避免重复测试
-        if (state.gitConnected) {
-          console.log('GitSyncSettings: Already connected, skipping auto test')
-          return
-        }
-        
-        setIsTestingConnection(true)
-        
-        try {
-          const result = await gitSyncClient.testConnection()
-          console.log('GitSyncSettings: Auto test completed:', result)
-          
-          dispatch({ type: 'SET_GIT_CONNECTED', payload: result.success })
-          dispatch({ 
-            type: 'SET_SYNC_STATUS', 
-            payload: { 
-              status: result.success ? 'success' : 'error',
-              message: result.message
-            }
-          })
-          
-          if (result.success) {
-            setHasLoadedFiles(false)
-          }
-        } catch (error) {
-          console.error('GitSyncSettings: Auto test error:', error)
-          dispatch({ 
-            type: 'SET_SYNC_STATUS', 
-            payload: { status: 'error', message: '自动测试连接失败' } 
-          })
-        } finally {
-          setIsTestingConnection(false)
-        }
-      }, 500) // 缩短延迟时间
-
-      // 返回清理函数
-      return () => {
-        console.log('GitSyncSettings: Clearing auto test timer')
-        clearTimeout(timer)
-      }
-    }
-  }, [state.gitConfig]) // 只依赖gitConfig
-
-  // 连接成功后加载文件列表 - 只执行一次
+  // 新增：当页面加载时，如果已经连接但还没加载文件，则加载文件
   useEffect(() => {
     if (state.gitConnected && !hasLoadedFiles && !isLoadingFiles) {
+      console.log('GitSyncSettings: Git already connected, loading files...')
       loadCloudFiles()
     }
   }, [state.gitConnected, hasLoadedFiles, isLoadingFiles, loadCloudFiles])
@@ -234,7 +184,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
         branch: 'main' 
       })
       setCloudFiles([])
-      setHasAutoTested(false) // 重置自动测试状态
+      // setHasAutoTested(false) // 重置自动测试状态
       setHasLoadedFiles(false) // 重置文件加载状态
     }
   }
@@ -273,6 +223,32 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
       setHasLoadedFiles(false) // 重置加载状态以允许重新加载
       loadCloudFiles()
     }
+  }
+
+  // 新增：处理自动同步开关
+  const handleAutoSyncToggle = () => {
+    const newAutoSync = !state.autoSync
+    dispatch({ type: 'SET_AUTO_SYNC', payload: newAutoSync })
+    
+    dispatch({ 
+      type: 'SET_SYNC_STATUS', 
+      payload: { 
+        status: 'success', 
+        message: newAutoSync ? '自动同步已开启' : '自动同步已关闭' 
+      } 
+    })
+  }
+
+  // 新增：格式化距离上次变化的时间
+  const formatTimeSinceLastChange = () => {
+    if (!state.lastChangeTime) return ''
+    
+    const seconds = Math.floor((Date.now() - state.lastChangeTime) / 1000)
+    if (seconds < 60) return `${seconds}秒前`
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes}分钟前`
+    const hours = Math.floor(minutes / 60)
+    return `${hours}小时前`
   }
 
   const getSyncStatusIcon = () => {
@@ -342,10 +318,15 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                 已连接
               </span>
+            ) : state.gitConfig ? (
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+                已配置未连接
+              </span>
             ) : (
               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                 <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                未连接
+                未配置
               </span>
             )}
             {isTestingConnection && (
@@ -509,6 +490,86 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
             </div>
           </div>
 
+          {/* 新增：自动同步控制 */}
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <BoltIcon className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-800">自动同步</h4>
+                  <p className="text-sm text-gray-600">检测到数据变化时自动同步到云端</p>
+                </div>
+              </div>
+              <button
+                onClick={handleAutoSyncToggle}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  state.autoSync ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    state.autoSync ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            
+            {/* 自动同步状态显示 */}
+            {state.autoSync && (
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">监控状态：</span>
+                  <span className={`flex items-center space-x-1 ${
+                    state.autoSyncActive ? 'text-green-600' : 'text-gray-500'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full ${
+                      state.autoSyncActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'
+                    }`}></div>
+                    <span>{state.autoSyncActive ? '监控中' : '未监控'}</span>
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Git连接：</span>
+                  <span className={`flex items-center space-x-1 ${
+                    state.gitConnected ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    <div className={`w-2 h-2 rounded-full ${
+                      state.gitConnected ? 'bg-green-500' : 'bg-red-500'
+                    }`}></div>
+                    <span>{state.gitConnected ? '已连接' : '未连接'}</span>
+                  </span>
+                </div>
+                
+                {state.pendingChanges && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">待同步更改：</span>
+                    <span className="flex items-center space-x-1 text-orange-600">
+                      <ClockIcon className="w-4 h-4" />
+                      <span>{formatTimeSinceLastChange()}</span>
+                    </span>
+                  </div>
+                )}
+                
+                <div className="text-xs text-gray-500 mt-2">
+                  💡 数据变化后将在5秒内自动同步到云端
+                </div>
+                
+                {/* 新增：调试信息 */}
+                <div className="mt-3 p-2 bg-gray-100 rounded text-xs">
+                  <div className="text-gray-600 font-medium mb-1">调试信息:</div>
+                  <div>自动同步: {state.autoSync ? '开启' : '关闭'}</div>
+                  <div>监控活跃: {state.autoSyncActive ? '是' : '否'}</div>
+                  <div>待处理变化: {state.pendingChanges ? '是' : '否'}</div>
+                  <div>同步状态: {state.syncStatus}</div>
+                  <div>Git连接: {state.gitConnected ? '是' : '否'}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* 通用同步按钮 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
@@ -517,7 +578,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               className="flex items-center justify-center space-x-2 p-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               {getSyncStatusIcon()}
-              <span>同步所有数据到云端</span>
+              <span>手动同步到云端</span>
             </button>
             <button
               onClick={syncFromCloud}
@@ -525,7 +586,7 @@ function GitSyncSettings({ onFileView }: GitSyncSettingsProps) {
               className="flex items-center justify-center space-x-2 p-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
             >
               <ArrowPathIcon className="w-4 h-4" />
-              <span>从云端同步所有数据</span>
+              <span>从云端同步数据</span>
             </button>
           </div>
 

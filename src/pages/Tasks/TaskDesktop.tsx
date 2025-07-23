@@ -24,25 +24,32 @@ function TaskDesktop() {
 
   const [draggedTask, setDraggedTask] = useState<Task | null>(null)
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null)
+  const [dragOverTask, setDragOverTask] = useState<string | null>(null)
+  const [dropPosition, setDropPosition] = useState<'before' | 'after' | null>(null)
 
-  // 过滤任务
-  const filteredTasks = state.tasks.filter(task => {
-    if (state.selectedGroupId && task.groupId !== state.selectedGroupId) {
-      return false
-    }
-    
-    if (state.showDeleted) {
-      return task.deletedAt
-    }
-    
-    if (task.deletedAt) return false
-    
-    if (state.showCompleted) {
-      return task.completed
-    }
-    
-    return !task.completed
-  })
+  // 过滤和排序任务
+  const filteredTasks = state.tasks
+    .filter(task => {
+      if (state.selectedGroupId && task.groupId !== state.selectedGroupId) {
+        return false
+      }
+      
+      if (state.showDeleted) {
+        return task.deletedAt
+      }
+      
+      if (task.deletedAt) return false
+      
+      if (state.showCompleted) {
+        return task.completed
+      }
+      
+      return !task.completed
+    })
+    .sort((a, b) => {
+      // 按创建时间排序，越早创建的越靠前
+      return a.createdAt.getTime() - b.createdAt.getTime()
+    })
 
   // 限制回收站显示条数
   const displayTasks = state.showDeleted ? filteredTasks.slice(0, 10) : filteredTasks
@@ -127,7 +134,98 @@ function TaskDesktop() {
     }
   }
 
-  // 2. 添加拖拽处理函数
+  // 任务拖拽排序处理函数
+  const handleTaskDragStart = (e: React.DragEvent, task: Task) => {
+    if (task.deletedAt) return
+    setDraggedTask(task)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('task-id', task.id)
+  }
+
+  const handleTaskDragEnd = () => {
+    setDraggedTask(null)
+    setDragOverGroup(null)
+    setDragOverTask(null)
+    setDropPosition(null)
+  }
+
+  const handleTaskDragOver = (e: React.DragEvent, targetTask: Task) => {
+    e.preventDefault()
+    
+    if (!draggedTask || draggedTask.id === targetTask.id) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const position = e.clientY < midY ? 'before' : 'after'
+    
+    setDragOverTask(targetTask.id)
+    setDropPosition(position)
+  }
+
+  const handleTaskDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverTask(null)
+      setDropPosition(null)
+    }
+  }
+
+  const handleTaskDrop = (e: React.DragEvent, targetTask: Task) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    if (!draggedTask || draggedTask.id === targetTask.id) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const position = e.clientY < midY ? 'before' : 'after'
+    
+    // 获取当前显示的任务列表（按当前顺序）
+    const currentTasks = displayTasks
+    const draggedTaskIndex = currentTasks.findIndex(t => t.id === draggedTask.id)
+    const targetTaskIndex = currentTasks.findIndex(t => t.id === targetTask.id)
+    
+    if (draggedTaskIndex === -1 || targetTaskIndex === -1) return
+    
+    // 计算新的时间戳来重新排序
+    let newTimestamp: number
+    
+    if (position === 'before') {
+      // 插入到目标任务前面
+      if (targetTaskIndex === 0) {
+        // 插入到第一个位置
+        newTimestamp = targetTask.createdAt.getTime() - 60000 // 减少1分钟
+      } else {
+        // 插入到两个任务之间
+        const prevTask = currentTasks[targetTaskIndex - 1]
+        newTimestamp = (prevTask.createdAt.getTime() + targetTask.createdAt.getTime()) / 2
+      }
+    } else {
+      // 插入到目标任务后面
+      if (targetTaskIndex === currentTasks.length - 1) {
+        // 插入到最后一个位置
+        newTimestamp = targetTask.createdAt.getTime() + 60000 // 增加1分钟
+      } else {
+        // 插入到两个任务之间
+        const nextTask = currentTasks[targetTaskIndex + 1]
+        newTimestamp = (targetTask.createdAt.getTime() + nextTask.createdAt.getTime()) / 2
+      }
+    }
+    
+    // 更新拖拽任务的时间戳
+    dispatch({
+      type: 'UPDATE_TASK',
+      payload: {
+        id: draggedTask.id,
+        updates: { createdAt: new Date(newTimestamp) }
+      }
+    })
+    
+    setDraggedTask(null)
+    setDragOverTask(null)
+    setDropPosition(null)
+  }
+
+  // 分组拖拽处理函数（保持原有逻辑）
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     if (task.deletedAt) return
     setDraggedTask(task)
@@ -140,18 +238,12 @@ function TaskDesktop() {
     setDragOverGroup(null)
   }
 
-  // const handleDragOver = (e: React.DragEvent) => {
-  //   e.preventDefault()
-  //   e.dataTransfer.dropEffect = 'move'
-  // }
-
   const handleGroupDragOver = (e: React.DragEvent, groupId: string | null) => {
     e.preventDefault()
     setDragOverGroup(groupId)
   }
 
   const handleGroupDragLeave = (e: React.DragEvent) => {
-    // 只有当离开整个分组区域时才清除高亮
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverGroup(null)
     }
@@ -161,7 +253,7 @@ function TaskDesktop() {
     e.preventDefault()
     if (!draggedTask) return
     
-    const actualTargetGroupId = targetGroupId || '1' // 默认分组
+    const actualTargetGroupId = targetGroupId || '1'
     
     if (draggedTask.groupId !== actualTargetGroupId) {
       dispatch({
@@ -176,6 +268,7 @@ function TaskDesktop() {
     setDraggedTask(null)
     setDragOverGroup(null)
   }
+
   return (
     <div className="flex h-[calc(100vh-6rem)] relative">
       {/* 左侧分组栏 */}
@@ -376,142 +469,167 @@ function TaskDesktop() {
             <div className="space-y-3">
               {displayTasks.map(task => {
                 const taskGroup = getTaskGroup(task.groupId)
+                const isDragOver = dragOverTask === task.id
+                const showDropIndicator = isDragOver && dropPosition && draggedTask?.id !== task.id
+                
                 return (
-                  <div
-                    key={task.id}
-                    draggable={!task.deletedAt}
-                    onDragStart={(e) => handleDragStart(e, task)}
-                    onDragEnd={handleDragEnd}
-                    className={`group bg-white rounded-lg border border-gray-200 p-4 transition-all ${
-                      task.deletedAt ? 'opacity-60' : 'hover:shadow-md cursor-pointer '
-                    } ${ 
-                      // 拖拽时，缩放和透明度变化，倾斜
-                      draggedTask?.id === task.id ? 'opacity-30 scale-95 rotate-1' : ''
-                    } ${
-                      !task.deletedAt ? 'cursor-move' : ''
-                    }`}
-                    onClick={() => !task.deletedAt && handleEditTask(task)}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* 完成状态 */}
-                      {!task.deletedAt && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleCompleteTask(task.id)
-                          }}
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 mt-0.5 ${
-                            task.completed
-                              ? 'bg-green-500 border-green-500 text-white'
-                              : 'border-gray-300 hover:border-green-400'
-                          }`}
-                        >
-                          {task.completed && <CheckIcon className="w-3 h-3" />}
-                        </button>
-                      )}
+                  <div key={task.id} className="relative">
+                    {/* 拖拽指示器 - 上方 */}
+                    {showDropIndicator && dropPosition === 'before' && (
+                      <div className="absolute -top-1.5 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
+                    )}
+                    
+                    <div
+                      draggable={!task.deletedAt}
+                      onDragStart={(e) => {
+                        // 检查是否有分组选择，如果有则只能排序不能移动分组
+                        if (state.selectedGroupId) {
+                          handleTaskDragStart(e, task)
+                        } else {
+                          handleDragStart(e, task)
+                        }
+                      }}
+                      onDragEnd={() => {
+                        handleTaskDragEnd()
+                        handleDragEnd()
+                      }}
+                      onDragOver={(e) => state.selectedGroupId ? handleTaskDragOver(e, task) : undefined}
+                      onDragLeave={(e) => state.selectedGroupId ? handleTaskDragLeave(e) : undefined}
+                      onDrop={(e) => state.selectedGroupId ? handleTaskDrop(e, task) : undefined}
+                      className={`group bg-white rounded-lg border border-gray-200 p-4 transition-all ${
+                        task.deletedAt ? 'opacity-60' : 'hover:shadow-md cursor-pointer '
+                      } ${ 
+                        draggedTask?.id === task.id ? 'opacity-30 scale-95 rotate-1' : ''
+                      } ${
+                        !task.deletedAt ? 'cursor-move' : ''
+                      }`}
+                      onClick={() => !task.deletedAt && handleEditTask(task)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* 完成状态 */}
+                        {!task.deletedAt && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCompleteTask(task.id)
+                            }}
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 mt-0.5 ${
+                              task.completed
+                                ? 'bg-green-500 border-green-500 text-white'
+                                : 'border-gray-300 hover:border-green-400'
+                            }`}
+                          >
+                            {task.completed && <CheckIcon className="w-3 h-3" />}
+                          </button>
+                        )}
 
-                      {/* 任务内容 */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">  
-                            <h3 className={`font-medium ${
-                              task.completed ? 'line-through text-gray-500' : 'text-gray-900'
-                            }`}>
-                              {task.title}
-                            </h3>
-                                {!task.deletedAt && (
-                                  <div className="flex items-center gap-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-                                    </svg>
-                                    <span className="text-xs">拖拽移动</span>
-                                  </div>
-                                )}
-                            {/* 分组标签 */}
-                            {!state.selectedGroupId && taskGroup && (
-                              <div className="mt-2">
-                                <span 
-                                  className="inline-block px-2 py-1 rounded-full text-xs font-medium text-white"
-                                  style={{ backgroundColor: taskGroup.color }}
-                                >
-                                  {taskGroup.name}
+                        {/* 任务内容 */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">  
+                              <h3 className={`font-medium ${
+                                task.completed ? 'line-through text-gray-500' : 'text-gray-900'
+                              }`}>
+                                {task.title}
+                              </h3>
+                              {/* 任务描述：放在标题下方，浅灰小字 */}
+                              {task.description && (
+                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                                  {task.description}
+                                </p>
+                              )}
+                              {/* 拖拽提示 */}
+                              {!task.deletedAt && (
+                                <div className="flex items-center gap-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity mt-1">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                  </svg>
+                                  <span className="text-xs">
+                                    {state.selectedGroupId ? '拖拽排序' : '拖拽移动'}
+                                  </span>
+                                </div>
+                              )}
+                              {/* 分组标签 */}
+                              {!state.selectedGroupId && taskGroup && (
+                                <div className="mt-2">
+                                  <span 
+                                    className="inline-block px-2 py-1 rounded-full text-xs font-medium text-white"
+                                    style={{ backgroundColor: taskGroup.color }}
+                                  >
+                                    {taskGroup.name}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            {/* 操作按钮：删除/恢复 */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                task.deletedAt ? handleRestoreTask(task.id) : handleDeleteTask(task.id)
+                              }}
+                              className={`p-2 rounded-lg transition-colors ${
+                                task.deletedAt 
+                                  ? 'text-green-500 hover:bg-green-50' 
+                                  : 'text-red-500 hover:bg-red-50'
+                              }`}
+                              title={task.deletedAt ? '恢复任务' : '删除任务'}
+                            >
+                              {task.deletedAt ? (
+                                <ArrowPathIcon className="w-4 h-4" />
+                              ) : (
+                                <TrashIcon className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                          {/* 任务元信息 */}
+                          <div className="flex items-center flex-wrap gap-4 mt-3 text-xs text-gray-500">
+                            {task.dueDate && (
+                              <div className="flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" />
+                                <span>{formatDate(task.dueDate)}</span>
+                              </div>
+                            )}
+                            
+                            {task.startTime && (
+                              <div className="flex items-center gap-1">
+                                <ClockIcon className="w-3 h-3" />
+                                <span>
+                                  {task.startTime}
+                                  {task.endTime && ` - ${task.endTime}`}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {task.priority && (
+                              <div className="flex items-center gap-1">
+                                <FlagIcon className={`w-3 h-3 ${getPriorityColor(task.priority)}`} />
+                                <span className={getPriorityColor(task.priority)}>
+                                  {getPriorityText(task.priority)}
+                                </span>
+                              </div>
+                            )}
+
+                            {task.repeat && task.repeat !== 'none' && (
+                              <div className="flex items-center gap-1">
+                                <ArrowPathIcon className="w-3 h-3" />
+                                <span>
+                                  {task.repeat === 'daily' ? '每日' :
+                                   task.repeat === 'weekly' ? '每周' :
+                                   task.repeat === 'monthly' ? '每月' : ''}
                                 </span>
                               </div>
                             )}
                           </div>
-                          
-                          {/* 操作按钮 */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              task.deletedAt ? handleRestoreTask(task.id) : handleDeleteTask(task.id)
-                            }}
-                            className={`p-2 rounded-lg transition-colors ${
-                              task.deletedAt 
-                                ? 'text-green-500 hover:bg-green-50' 
-                                : 'text-red-500 hover:bg-red-50'
-                            }`}
-                            title={task.deletedAt ? '恢复任务' : '删除任务'}
-                          >
-                            {task.deletedAt ? (
-                              <ArrowPathIcon className="w-4 h-4" />
-                            ) : (
-                              <TrashIcon className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-
-                        {/* 任务描述 */}
-                        {task.description && (
-                          <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                            {task.description}
-                          </p>
-                        )}
-
-                        {/* 任务元信息 */}
-                        <div className="flex items-center flex-wrap gap-4 mt-3 text-xs text-gray-500">
-                          {task.dueDate && (
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3" />
-                              <span>{formatDate(task.dueDate)}</span>
-                            </div>
-                          )}
-                          
-                          {task.startTime && (
-                            <div className="flex items-center gap-1">
-                              <ClockIcon className="w-3 h-3" />
-                              <span>
-                                {task.startTime}
-                                {task.endTime && ` - ${task.endTime}`}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {task.priority && (
-                            <div className="flex items-center gap-1">
-                              <FlagIcon className={`w-3 h-3 ${getPriorityColor(task.priority)}`} />
-                              <span className={getPriorityColor(task.priority)}>
-                                {getPriorityText(task.priority)}
-                              </span>
-                            </div>
-                          )}
-
-                          {task.repeat && task.repeat !== 'none' && (
-                            <div className="flex items-center gap-1">
-                              <ArrowPathIcon className="w-3 h-3" />
-                              <span>
-                                {task.repeat === 'daily' ? '每日' :
-                                 task.repeat === 'weekly' ? '每周' :
-                                 task.repeat === 'monthly' ? '每月' : ''}
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
+
+                    {/* 拖拽指示器 - 下方 */}
+                    {showDropIndicator && dropPosition === 'after' && (
+                      <div className="absolute -bottom-1.5 left-0 right-0 h-0.5 bg-blue-500 rounded-full z-10" />
+                    )}
                   </div>
-                )
-              })}
+                )})}
             </div>
           )}
         </div>

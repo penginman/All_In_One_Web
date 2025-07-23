@@ -52,7 +52,7 @@ function bookmarkReducer(state: BookmarkState, action: BookmarkAction): Bookmark
         title: title || '新书签',
         url: url,
         description: '',
-        favicon: `https://favicone.com${new URL(url).hostname}`,
+        favicon: `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(url)}`,
         tags: [],
         groupId: groupId,
         order: targetGroupBookmarksCount,
