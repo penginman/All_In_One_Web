@@ -4,7 +4,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   // GitHub Pages 部署配置 - 这个路径必须与你的仓库名一致
-  base: process.env.NODE_ENV === 'production' ? '/All_In_One_Web/' : '/',
+  // base: process.env.NODE_ENV === 'production' ? '/All_In_One_Web/' : '/',
+  base: '/',
   build: {
     outDir: 'dist',
     // 确保资源正确引用
