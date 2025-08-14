@@ -2,6 +2,9 @@
  * 移动端触摸交互工具函数
  */
 
+// 导入 CSS 类型扩展
+import '../types/css'
+
 /**
  * 获取触摸反馈的CSS类名
  * @param type 反馈类型
@@ -146,11 +149,11 @@ export function optimizeScrolling(element: HTMLElement): void {
   // 启用硬件加速
   element.style.transform = 'translateZ(0)'
   element.style.willChange = 'scroll-position'
-  
-  // 优化滚动行为
+
+  // 优化滚动行为 - WebKit 特有属性
   element.style.webkitOverflowScrolling = 'touch'
   element.style.overscrollBehavior = 'contain'
-  
+
   // 添加滚动优化类
   element.classList.add('mobile-scroll')
 }
