@@ -296,16 +296,15 @@ function TaskDesktop() {
             </div>
               
               {state.groups.map(group => (
-                <div 
-                    key={group.id} 
+                <div
+                    key={group.id}
                     className="relative"
                     onDragOver={(e) => handleGroupDragOver(e, group.id)}
                     onDragLeave={handleGroupDragLeave}
                     onDrop={(e) => handleGroupDrop(e, group.id)}
                   >
-                    <button
-                      onClick={() => dispatch({ type: 'SELECT_GROUP', payload: group.id })}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center ${
+                    <div
+                      className={`w-full px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
                         state.selectedGroupId === group.id
                           ? 'bg-blue-100 text-blue-700'
                           : 'text-gray-700 hover:bg-gray-100'
@@ -313,42 +312,51 @@ function TaskDesktop() {
                         dragOverGroup === group.id ? 'ring-2 ring-blue-400 bg-blue-50' : ''
                       }`}
                     >
-                      <div 
-                        className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
-                        style={{ backgroundColor: group.color }}
-                      />
-                      <span className="flex-1 truncate">{group.name}</span>
-                      <span className="text-xs text-gray-500 ml-2">
+                      {/* 分组选择按钮区域 */}
+                      <button
+                        onClick={() => dispatch({ type: 'SELECT_GROUP', payload: group.id })}
+                        className="flex items-center flex-1 text-left min-w-0"
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
+                          style={{ backgroundColor: group.color }}
+                        />
+                        <span className="flex-1 truncate">{group.name}</span>
+                      </button>
+
+                      {/* 分组菜单按钮 */}
+                      {group.id !== '1' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setGroupMenuOpen(groupMenuOpen === group.id ? null : group.id)
+                          }}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
+                        >
+                          <EllipsisVerticalIcon className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {/* 待办数量徽章 */}
+                      <span className="bg-gray-100 text-gray-600 rounded-full px-2.5 py-1 text-xs font-medium flex-shrink-0 min-w-[24px] text-center">
                         {state.tasks.filter(t => t.groupId === group.id && !t.deletedAt && !t.completed).length}
                       </span>
-                    </button>
-                    
-                  
-                  {/* 分组菜单 */}
-                  {group.id !== '1' && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setGroupMenuOpen(groupMenuOpen === group.id ? null : group.id)
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                    </div>
+
+                    {/* 分组菜单下拉框 */}
+                    {group.id !== '1' && groupMenuOpen === group.id && (
+                      <div
+                        className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-32"
+                        style={{ zIndex: 9999 }}
                       >
-                        <EllipsisVerticalIcon className="w-4 h-4" />
-                      </button>
-                      
-                      {groupMenuOpen === group.id && (
-                        <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg py-1 z-10 min-w-32">
-                          <button
-                            onClick={() => handleDeleteGroup(group.id)}
-                            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                          >
-                            删除分组
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
+                        <button
+                          onClick={() => handleDeleteGroup(group.id)}
+                          className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                        >
+                          删除分组
+                        </button>
+                      </div>
+                    )}
                 </div>
               ))}
             </div>

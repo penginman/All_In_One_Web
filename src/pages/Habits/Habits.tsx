@@ -269,21 +269,21 @@ function HabitsContent() {
 
   // 主视图
   return (
-    <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6 px-2 lg:px-0">
+    <div className="responsive-container space-y-md-gap lg:space-y-lg-gap">
       {/* 头部 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl lg:text-3xl font-bold text-gray-900">习惯打卡</h1>
+        <h1 className="responsive-heading text-gray-900">习惯打卡</h1>
         <div className="flex items-center space-x-1 lg:space-x-2">
           <button
             onClick={() => setCurrentView('stats')}
-            className="px-2 py-1 lg:px-3 lg:py-2 text-xs lg:text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 active:scale-95 flex items-center space-x-1 lg:space-x-2"
+            className="px-2 py-1 lg:px-3 lg:py-2 text-xs lg:text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 active:scale-95 flex items-center space-x-1 lg:space-x-2 touch-target"
           >
             <ChartBarIcon className="w-3 h-3 lg:w-5 lg:h-5" />
             <span className="hidden sm:inline">统计分析</span>
           </button>
           <button
             onClick={() => setCurrentView('management')}
-            className="px-2 py-1 lg:px-3 lg:py-2 text-xs lg:text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all duration-200 active:scale-95 flex items-center space-x-1 lg:space-x-2"
+            className="px-2 py-1 lg:px-3 lg:py-2 text-xs lg:text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-all duration-200 active:scale-95 flex items-center space-x-1 lg:space-x-2 touch-target"
           >
             <Cog6ToothIcon className="w-3 h-3 lg:w-5 lg:h-5" />
             <span className="hidden sm:inline">习惯管理</span>
@@ -293,7 +293,7 @@ function HabitsContent() {
               setEditingHabit(null)
               setIsHabitModalOpen(true)
             }}
-            className="px-2 py-1 lg:px-3 lg:py-2 text-xs lg:text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 active:scale-95 flex items-center space-x-1 lg:space-x-2"
+            className="px-2 py-1 lg:px-3 lg:py-2 text-xs lg:text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 active:bg-blue-700 transition-all duration-200 active:scale-95 flex items-center space-x-1 lg:space-x-2 touch-target btn-touch shadow-sm hover:shadow-md"
           >
             <PlusIcon className="w-3 h-3 lg:w-5 lg:h-5" />
             <span className="hidden sm:inline">添加习惯</span>

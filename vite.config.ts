@@ -3,8 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // GitHub Pages 部署配置 - 这个路径必须与你的仓库名一致
-  // base: process.env.NODE_ENV === 'production' ? '/All_In_One_Web/' : '/',
+  // Vercel 部署配置 - 部署到根路径
   base: '/',
   build: {
     outDir: 'dist',

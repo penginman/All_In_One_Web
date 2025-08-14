@@ -22,11 +22,11 @@ function Settings() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* 页面标题 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-2 sm:space-y-0">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">系统设置</h1>
-        <div className="text-sm text-gray-500">
+    <div className="responsive-container space-y-md-gap lg:space-y-lg-gap">
+      {/* 页面标题 - 响应式优化 */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-sm-gap sm:space-y-0">
+        <h1 className="responsive-heading text-gray-900">系统设置</h1>
+        <div className="responsive-text text-gray-500 leading-relaxed">
           配置您的个人偏好和云同步选项
         </div>
       </div>
@@ -34,21 +34,20 @@ function Settings() {
       {/* Git同步设置 */}
       <GitSyncSettings onFileView={handleFileView} />
 
-
-      {/* 应用设置 */}
-      <div className="card">
-        <div className="mb-4 flex items-center space-x-3">
-          <div className="p-2 bg-gray-100 rounded-lg">
-            <Cog6ToothIcon className="w-5 h-5 text-gray-600" />
+      {/* 应用设置 - 响应式优化 */}
+      <div className="responsive-card">
+        <div className="mb-md-gap flex items-start sm:items-center space-x-sm-gap lg:space-x-md-gap">
+          <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
+            <Cog6ToothIcon className="responsive-icon text-gray-600" />
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">应用设置</h2>
-            <p className="text-sm text-gray-600">个性化您的使用体验</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800">应用设置</h2>
+            <p className="responsive-text text-gray-600 leading-relaxed">个性化您的使用体验</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0">
             <div className="flex items-center space-x-2">
               <GlobeAltIcon className="w-4 h-4 text-green-600" />
               <span className="text-sm font-medium text-gray-900">搜索引擎</span>
@@ -56,14 +55,14 @@ function Settings() {
             <select
               value={state.searchEngine}
               onChange={(e) => dispatch({ type: 'SET_SEARCH_ENGINE', payload: e.target.value as 'bing' | 'google' })}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none touch-target w-full sm:w-auto"
             >
               <option value="google">Google</option>
               <option value="bing">Bing</option>
             </select>
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0">
             <div className="flex items-center space-x-2">
               <PaintBrushIcon className="w-4 h-4 text-purple-600" />
               <span className="text-sm font-medium text-gray-900">界面主题</span>
@@ -71,7 +70,7 @@ function Settings() {
             <select
               value={state.theme}
               onChange={(e) => dispatch({ type: 'SET_THEME', payload: e.target.value as 'light' | 'dark' })}
-              className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none touch-target w-full sm:w-auto"
             >
               <option value="light">浅色</option>
               <option value="dark">深色</option>

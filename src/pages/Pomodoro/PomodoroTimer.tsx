@@ -22,21 +22,19 @@ function Learning() {
   }, [dispatch])
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">学习</h1>
-      
+    <div className="responsive-container">
+      <h1 className="responsive-heading text-gray-900 mb-md-gap lg:mb-lg-gap">学习</h1>
+
       {/* 番茄时钟 */}
-      <div className="card mb-6">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">番茄时钟</h2>
-          <p className="text-gray-600 text-sm">
+      <div className="responsive-card mb-md-gap lg:mb-lg-gap">
+        <div className="mb-md-gap">
+          <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-800 mb-2">番茄时钟</h2>
+          <p className="responsive-text text-gray-600 leading-relaxed">
             使用番茄工作法提高专注力，每个工作周期25分钟，短休息5分钟，长休息15分钟
           </p>
         </div>
         <PomodoroTimer />
       </div>
-
-
     </div>
   )
 }

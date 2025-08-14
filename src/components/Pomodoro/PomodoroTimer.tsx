@@ -72,11 +72,12 @@ function PomodoroTimer() {
     <div className="space-y-6">
       {/* 主计时器 */}
       <div className="text-center">
-        <div className={`inline-block px-6 py-3 rounded-full text-white font-medium mb-4 ${getSessionColor(state.currentSession.type || '')}`}>
+        <div className={`inline-block px-4 sm:px-6 py-2 sm:py-3 rounded-full text-white font-medium mb-4 text-sm sm:text-base ${getSessionColor(state.currentSession.type || '')}`}>
           {getSessionLabel(state.currentSession.type || '')}
         </div>
-        
-        <div className="relative w-64 h-64 mx-auto mb-6">
+
+        {/* 响应式圆形进度条 */}
+        <div className="relative w-48 h-48 sm:w-64 sm:h-64 mx-auto mb-6">
           {/* 进度圆环 */}
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
             <circle
@@ -84,7 +85,7 @@ function PomodoroTimer() {
               cy="50"
               r="45"
               stroke="currentColor"
-              strokeWidth="4"
+              strokeWidth="3"
               fill="none"
               className="text-gray-200"
             />
@@ -93,29 +94,29 @@ function PomodoroTimer() {
               cy="50"
               r="45"
               stroke="currentColor"
-              strokeWidth="4"
+              strokeWidth="3"
               fill="none"
               strokeDasharray={`${2 * Math.PI * 45}`}
               strokeDashoffset={`${2 * Math.PI * 45 * (1 - getCurrentProgress() / 100)}`}
               className={`transition-all duration-1000 ${
-                state.currentSession.type === 'work' 
-                  ? 'text-red-500' 
-                  : state.currentSession.type === 'shortBreak' 
-                  ? 'text-green-500' 
+                state.currentSession.type === 'work'
+                  ? 'text-red-500'
+                  : state.currentSession.type === 'shortBreak'
+                  ? 'text-green-500'
                   : 'text-blue-500'
               }`}
               style={{ strokeLinecap: 'round' }}
             />
           </svg>
-          
-          {/* 时间显示 */}
+
+          {/* 时间显示 - 响应式字体 */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-4xl font-mono font-bold text-gray-900">
+              <div className="text-2xl sm:text-4xl font-mono font-bold text-gray-900">
                 {state.currentSession.type ? formatTime(state.currentSession.timeLeft) : '25:00'}
               </div>
               {state.currentSession.sessionCount > 0 && (
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="text-xs sm:text-sm text-gray-600 mt-1">
                   第 {state.currentSession.sessionCount} 个番茄
                 </div>
               )}
@@ -123,29 +124,29 @@ function PomodoroTimer() {
           </div>
         </div>
 
-        {/* 控制按钮 */}
-        <div className="flex justify-center space-x-4">
+        {/* 控制按钮 - 移动端优化 */}
+        <div className="flex justify-center space-x-3 sm:space-x-4">
           <button
             onClick={handleStart}
-            className={`flex items-center justify-center w-16 h-16 rounded-full text-white font-medium transition-all transform hover:scale-105 ${
-              state.currentSession.isRunning 
-                ? 'bg-orange-500 hover:bg-orange-600' 
-                : 'bg-green-500 hover:bg-green-600'
+            className={`flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full text-white font-medium transition-all transform hover:scale-105 active:scale-95 touch-target btn-touch shadow-lg hover:shadow-xl ${
+              state.currentSession.isRunning
+                ? 'bg-orange-500 hover:bg-orange-600 active:bg-orange-700'
+                : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
             }`}
           >
             {state.currentSession.isRunning ? (
-              <PauseIcon className="w-8 h-8" />
+              <PauseIcon className="w-6 h-6 sm:w-8 sm:h-8" />
             ) : (
-              <PlayIcon className="w-8 h-8 ml-1" />
+              <PlayIcon className="w-6 h-6 sm:w-8 sm:h-8 ml-0.5" />
             )}
           </button>
-          
+
           {state.currentSession.type && (
             <button
               onClick={handleStop}
-              className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium transition-all transform hover:scale-105"
+              className="flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-medium transition-all transform hover:scale-105 active:scale-95 touch-target btn-touch shadow-lg hover:shadow-xl"
             >
-              <StopIcon className="w-8 h-8" />
+              <StopIcon className="w-6 h-6 sm:w-8 sm:h-8" />
             </button>
           )}
         </div>
@@ -158,12 +159,12 @@ function PomodoroTimer() {
         )}
       </div>
 
-      {/* 快速开始按钮 */}
+      {/* 快速开始按钮 - 移动端优化 */}
       {!state.currentSession.type && (
-        <div className="flex justify-center space-x-3">
+        <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3">
           <button
             onClick={() => startSession('work')}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 active:bg-red-700 transition-all touch-target text-sm sm:text-base btn-touch shadow-md hover:shadow-lg"
           >
             开始专注 ({state.settings.workDuration}分钟)
           </button>

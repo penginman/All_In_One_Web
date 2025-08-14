@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
-import { 
-  HomeIcon, 
-  BookOpenIcon, 
+import {
+  HomeIcon,
+  BookOpenIcon,
   ClipboardDocumentListIcon,
   CalendarIcon,
   CheckCircleIcon,
@@ -15,6 +15,7 @@ import {
   CheckBadgeIcon
 } from '@heroicons/react/24/outline'
 import { useAppContext } from '../../context/AppContext'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 const navigationItems = [
   { name: '首页', href: '/', icon: HomeIcon },
@@ -28,6 +29,12 @@ const navigationItems = [
 function Sidebar() {
   const { state, dispatch } = useAppContext()
   const location = useLocation()
+  const isMobile = useIsMobile()
+
+  // 移动端不显示侧边栏
+  if (isMobile) {
+    return null
+  }
 
   const getSyncStatusIcon = () => {
     if (!state.gitConnected) {

@@ -204,14 +204,18 @@ function Home() {
   }, [])
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0">
+    <div className="responsive-container space-y-md-gap lg:space-y-lg-gap">
       {/* 页面标题 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-sm-gap lg:gap-md-gap">
         {/* 网站图标 */}
-        <img src={`${import.meta.env.BASE_URL}icon/总图标.png`} alt="网站图标" className="w-15 h-15" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">一站能流</h1>
-        <div className="flex flex-col items-end gap-1">
-          <div className="text-sm text-gray-500">
+        <img
+          src={`${import.meta.env.BASE_URL}icon/总图标.png`}
+          alt="网站图标"
+          className="w-12 h-12 sm:w-15 sm:h-15 lg:w-18 lg:h-18 responsive-image object-contain"
+        />
+        <h1 className="responsive-heading text-gray-900">一站能流</h1>
+        <div className="flex flex-col items-start sm:items-end gap-1">
+          <div className="text-xs sm:text-sm text-gray-500">
             {new Date().toLocaleDateString('zh-CN', { 
               year: 'numeric', 
               month: 'long', 
@@ -321,32 +325,32 @@ function Home() {
 
 
 
-        {/* 搜索引擎切换 - 居中显示 */}
+        {/* 搜索引擎切换 - 移动端优化 */}
         <div className="flex justify-center mb-4">
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center max-w-full">
             {availableEngines.map((engine) => (
               <button
                 key={engine.key}
                 onClick={() => handleEngineClick(engine.key as SearchEngineKey)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all touch-target btn-touch ${
                   currentEngineKey === engine.key
                     ? `${engine.color} text-white shadow-md transform scale-105`
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:scale-105'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 hover:scale-105'
                 }`}
               >
-                <span className="text-base">{engine.icon}</span>
-                <span>{engine.name}</span>
+                <span className="text-sm sm:text-base">{engine.icon}</span>
+                <span className="hidden xs:inline sm:inline">{engine.name}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* 搜索输入框 */}
+        {/* 搜索输入框 - 移动端优化 */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
             <div className="relative">
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
-                <span className="text-lg">{currentEngine?.icon}</span>
+                <span className="text-base sm:text-lg">{currentEngine?.icon}</span>
                 <MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />
               </div>
               <input
@@ -356,14 +360,14 @@ function Home() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyPress}
                 placeholder={`在 ${currentEngine?.name} 中搜索...`}
-                className="w-full pl-16 pr-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-14 sm:pl-16 pr-4 py-3 sm:py-3 text-base sm:text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all no-zoom"
               />
             </div>
           </div>
-          <button 
+          <button
             onClick={handleSearch}
             disabled={!searchQuery.trim()}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-lg font-medium whitespace-nowrap"
+            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed px-4 sm:px-6 py-3 text-base sm:text-lg font-medium whitespace-nowrap touch-target btn-touch"
           >
             搜索
           </button>

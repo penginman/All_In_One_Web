@@ -64,7 +64,7 @@ function CalendarContent() {
   }
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col lg:flex-row">
+    <div className="h-[calc(100vh-6rem)] flex flex-col lg:flex-row mobile-scroll">
       {/* 桌面端侧边栏 */}
       {isEventListVisible && (
         <div className="hidden lg:block lg:w-80 lg:mr-6 flex-shrink-0">

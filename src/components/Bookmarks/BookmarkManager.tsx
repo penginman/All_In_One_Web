@@ -326,9 +326,10 @@ function BookmarkManager({ onBookmarkClick }: BookmarkManagerProps) {
                             </button>
                             
                             {groupMenuOpen === group.id && (
-                              <div 
-                                className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-md py-1 z-20 min-w-20"
+                              <div
+                                className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-20"
                                 onClick={(e) => e.stopPropagation()}
+                                style={{ zIndex: 9999 }}
                               >
                                 <button
                                   onClick={() => {
@@ -389,7 +390,7 @@ function BookmarkManager({ onBookmarkClick }: BookmarkManagerProps) {
 
                   {/* 书签列表 - 更紧凑 */}
                   {!group.collapsed && (
-                    <div className="p-3">
+                    <div className="p-6">
                       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
                         {groupBookmarks.map(bookmark => (
                           <div

@@ -139,7 +139,7 @@ function TaskMobile() {
                   setEditingTask(null)
                   setIsModalOpen(true)
                 }}
-                className="h-10 bg-blue-500 text-white px-4 rounded-lg flex items-center gap-1.5 shadow-sm"
+                className="h-10 bg-blue-500 text-white px-4 rounded-lg flex items-center gap-1.5 shadow-sm touch-target btn-touch hover:bg-blue-600 active:bg-blue-700"
               >
                 <PlusIcon className="w-3 h-3" />
                 <span className="font-medium">新建</span>
@@ -347,7 +347,7 @@ function TaskMobile() {
                       style={{ backgroundColor: group.color }}
                     />
                     <span className="flex-1 text-base font-medium">{group.name}</span>
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                    <span className="count-badge">
                       {state.tasks.filter(t => t.groupId === group.id && !t.deletedAt && !t.completed).length}
                     </span>
                   </button>
