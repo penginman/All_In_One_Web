@@ -41,6 +41,10 @@ export interface PomodoroState {
     isRunning: boolean
     isPaused: boolean
     sessionCount: number // 当前工作周期计数
+    // 时间戳相关字段，用于后台计时校正
+    startTimestamp: number | null // 会话开始时的时间戳
+    pausedTimestamp: number | null // 暂停时的时间戳
+    totalPausedTime: number // 总暂停时间（毫秒）
   }
   sessions: PomodoroSession[]
   settings: PomodoroSettings
@@ -56,3 +60,4 @@ export type PomodoroAction =
   | { type: 'COMPLETE_SESSION' }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<PomodoroSettings> }
   | { type: 'LOAD_FROM_STORAGE'; payload: { sessions: PomodoroSession[]; settings: PomodoroSettings } }
+  | { type: 'CORRECT_TIME'; payload: { correctedTimeLeft: number } }

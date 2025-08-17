@@ -19,7 +19,10 @@ const initialState: PomodoroState = {
     timeLeft: 0,
     isRunning: false,
     isPaused: false,
-    sessionCount: 0
+    sessionCount: 0,
+    startTimestamp: null,
+    pausedTimestamp: null,
+    totalPausedTime: 0
   },
   sessions: [],
   settings: defaultSettings,
@@ -62,10 +65,10 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
   switch (action.type) {
     case 'START_SESSION': {
       const { sessionType } = action.payload
-      const duration = sessionType === 'work' 
-        ? state.settings.workDuration 
-        : sessionType === 'shortBreak' 
-        ? state.settings.shortBreakDuration 
+      const duration = sessionType === 'work'
+        ? state.settings.workDuration
+        : sessionType === 'shortBreak'
+        ? state.settings.shortBreakDuration
         : state.settings.longBreakDuration
 
       return {
@@ -75,7 +78,10 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
           type: sessionType,
           timeLeft: duration * 60,
           isRunning: true,
-          isPaused: false
+          isPaused: false,
+          startTimestamp: Date.now(),
+          pausedTimestamp: null,
+          totalPausedTime: 0
         }
       }
     }
@@ -86,18 +92,26 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
         currentSession: {
           ...state.currentSession,
           isRunning: false,
-          isPaused: true
+          isPaused: true,
+          pausedTimestamp: Date.now()
         }
       }
     }
 
     case 'RESUME_SESSION': {
+      const now = Date.now()
+      const pausedDuration = state.currentSession.pausedTimestamp
+        ? now - state.currentSession.pausedTimestamp
+        : 0
+
       return {
         ...state,
         currentSession: {
           ...state.currentSession,
           isRunning: true,
-          isPaused: false
+          isPaused: false,
+          pausedTimestamp: null,
+          totalPausedTime: state.currentSession.totalPausedTime + pausedDuration
         }
       }
     }
@@ -161,7 +175,10 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
           timeLeft: 0,
           isRunning: false,
           isPaused: false,
-          sessionCount: newSessionCount
+          sessionCount: newSessionCount,
+          startTimestamp: null,
+          pausedTimestamp: null,
+          totalPausedTime: 0
         }
       }
     }
@@ -200,7 +217,10 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
               timeLeft: 0,
               isRunning: false,
               isPaused: false,
-              sessionCount: state.currentSession.sessionCount // 手动结束不增加会话计数
+              sessionCount: state.currentSession.sessionCount, // 手动结束不增加会话计数
+              startTimestamp: null,
+              pausedTimestamp: null,
+              totalPausedTime: 0
             }
           }
         }
@@ -213,7 +233,10 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
           timeLeft: 0,
           isRunning: false,
           isPaused: false,
-          sessionCount: state.currentSession.sessionCount
+          sessionCount: state.currentSession.sessionCount,
+          startTimestamp: null,
+          pausedTimestamp: null,
+          totalPausedTime: 0
         }
       }
     }
@@ -230,12 +253,22 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
         ...s,
         completedAt: new Date(s.completedAt)
       }))
-      
+
       return {
         ...state,
         sessions: newSessions,
         settings: { ...defaultSettings, ...action.payload.settings },
         stats: calculateStats(newSessions)
+      }
+    }
+
+    case 'CORRECT_TIME': {
+      return {
+        ...state,
+        currentSession: {
+          ...state.currentSession,
+          timeLeft: Math.max(0, action.payload.correctedTimeLeft)
+        }
       }
     }
 
@@ -260,6 +293,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(pomodoroReducer, initialState)
   const initializeRef = useRef(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const hiddenTimestampRef = useRef<number | null>(null)
 
   // 初始化加载数据
   useEffect(() => {
@@ -279,6 +313,57 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load pomodoro data:', error)
     }
   }, [])
+
+  // 时间校正函数
+  const correctTimeIfNeeded = () => {
+    if (!state.currentSession.isRunning || !state.currentSession.startTimestamp) {
+      return
+    }
+
+    const now = Date.now()
+    const sessionDuration = state.currentSession.type === 'work'
+      ? state.settings.workDuration
+      : state.currentSession.type === 'shortBreak'
+      ? state.settings.shortBreakDuration
+      : state.settings.longBreakDuration
+
+    // 计算从开始到现在应该经过的总时间（秒）
+    const totalElapsedMs = now - state.currentSession.startTimestamp - state.currentSession.totalPausedTime
+    const totalElapsedSeconds = Math.floor(totalElapsedMs / 1000)
+
+    // 计算正确的剩余时间
+    const correctTimeLeft = Math.max(0, (sessionDuration * 60) - totalElapsedSeconds)
+
+    // 如果时间差异超过2秒，则进行校正
+    if (Math.abs(state.currentSession.timeLeft - correctTimeLeft) > 2) {
+      dispatch({
+        type: 'CORRECT_TIME',
+        payload: { correctedTimeLeft: correctTimeLeft }
+      })
+    }
+  }
+
+  // Page Visibility API 监听
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // 标签页隐藏时记录时间戳
+        hiddenTimestampRef.current = Date.now()
+      } else {
+        // 标签页重新可见时校正时间
+        if (hiddenTimestampRef.current && state.currentSession.isRunning) {
+          correctTimeIfNeeded()
+        }
+        hiddenTimestampRef.current = null
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [state.currentSession.isRunning, state.currentSession.startTimestamp, state.currentSession.totalPausedTime, state.currentSession.timeLeft, state.settings])
 
   // 定时器
   useEffect(() => {
