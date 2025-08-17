@@ -1,15 +1,16 @@
 import  { useState } from 'react'
-import { 
-  PlayIcon, 
-  PauseIcon, 
-  StopIcon, 
+import {
+  PlayIcon,
+  PauseIcon,
+  StopIcon,
   Cog6ToothIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  SpeakerXMarkIcon
 } from '@heroicons/react/24/outline'
 import { usePomodoroContext } from '../../context/PomodoroContext'
 
 function PomodoroTimer() {
-  const { state, startSession, pauseSession, resumeSession, stopSession, getNextSessionType } = usePomodoroContext()
+  const { state, startSession, pauseSession, resumeSession, stopSession, getNextSessionType, stopNotificationSound } = usePomodoroContext()
   const [showSettings, setShowSettings] = useState(false)
   const [showStats, setShowStats] = useState(false)
 
@@ -155,6 +156,23 @@ function PomodoroTimer() {
         {state.currentSession.isPaused && (
           <div className="mt-4 text-orange-600 font-medium">
             ⏸️ 已暂停
+          </div>
+        )}
+
+        {/* 提示音播放状态和控制 */}
+        {state.isPlayingSound && (
+          <div className="mt-4 flex items-center justify-center space-x-3">
+            <div className="flex items-center text-blue-600 font-medium">
+              <span className="animate-pulse">🔊</span>
+              <span className="ml-2">正在播放提示音</span>
+            </div>
+            <button
+              onClick={stopNotificationSound}
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white transition-all transform hover:scale-105 active:scale-95"
+              title="停止提示音"
+            >
+              <SpeakerXMarkIcon className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>

@@ -30,7 +30,8 @@ const initialState: PomodoroState = {
     today: { workSessions: 0, totalFocusTime: 0, totalBreakTime: 0 },
     week: { workSessions: 0, totalFocusTime: 0, totalBreakTime: 0 },
     allTime: { workSessions: 0, totalFocusTime: 0, totalBreakTime: 0 }
-  }
+  },
+  isPlayingSound: false
 }
 
 function calculateStats(sessions: PomodoroSession[]): PomodoroStats {
@@ -272,6 +273,20 @@ function pomodoroReducer(state: PomodoroState, action: PomodoroAction): Pomodoro
       }
     }
 
+    case 'START_SOUND': {
+      return {
+        ...state,
+        isPlayingSound: true
+      }
+    }
+
+    case 'STOP_SOUND': {
+      return {
+        ...state,
+        isPlayingSound: false
+      }
+    }
+
     default:
       return state
   }
@@ -285,6 +300,7 @@ interface PomodoroContextType {
   resumeSession: () => void
   stopSession: (interrupted?: boolean) => void
   getNextSessionType: () => 'work' | 'shortBreak' | 'longBreak'
+  stopNotificationSound: () => void
 }
 
 const PomodoroContext = createContext<PomodoroContextType | undefined>(undefined)
@@ -294,6 +310,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   const initializeRef = useRef(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const hiddenTimestampRef = useRef<number | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // 初始化加载数据
   useEffect(() => {
@@ -313,6 +330,52 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load pomodoro data:', error)
     }
   }, [])
+
+  // 音频控制函数
+  const playNotificationSound = () => {
+    if (!state.settings.soundEnabled) return
+
+    try {
+      // 停止当前播放的音频（如果有）
+      stopNotificationSound()
+
+      // 创建新的音频对象
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBzCa0fPTRhcMVqzk9J5NDAxQpuPwtmMcBzCa0fPTRhcMVqzk9J5NDAwLkiDrwGNQCAYeNJKF6MR5TgIVdZzf6X2SBgQbNJGF6sN5TgIVdJzm6H2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2b')
+      audioRef.current = audio
+
+      // 设置音频事件监听
+      audio.addEventListener('play', () => {
+        dispatch({ type: 'START_SOUND' })
+      })
+
+      audio.addEventListener('ended', () => {
+        dispatch({ type: 'STOP_SOUND' })
+        audioRef.current = null
+      })
+
+      audio.addEventListener('error', () => {
+        dispatch({ type: 'STOP_SOUND' })
+        audioRef.current = null
+      })
+
+      // 播放音频
+      audio.play().catch(() => {
+        dispatch({ type: 'STOP_SOUND' })
+        audioRef.current = null
+      })
+    } catch (error) {
+      console.error('Failed to play notification sound:', error)
+    }
+  }
+
+  const stopNotificationSound = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+      dispatch({ type: 'STOP_SOUND' })
+    }
+  }
 
   // 时间校正函数
   const correctTimeIfNeeded = () => {
@@ -350,9 +413,13 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
         // 标签页隐藏时记录时间戳
         hiddenTimestampRef.current = Date.now()
       } else {
-        // 标签页重新可见时校正时间
+        // 标签页重新可见时校正时间和停止音频
         if (hiddenTimestampRef.current && state.currentSession.isRunning) {
           correctTimeIfNeeded()
+        }
+        // 自动停止提示音
+        if (state.isPlayingSound) {
+          stopNotificationSound()
         }
         hiddenTimestampRef.current = null
       }
@@ -389,12 +456,9 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (state.currentSession.timeLeft === 0 && state.currentSession.type && !state.currentSession.isRunning) {
       dispatch({ type: 'COMPLETE_SESSION' })
-      
+
       // 播放提醒音
-      if (state.settings.soundEnabled) {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBzCa0fPTRhcMVqzk9J5NDAxQpuPwtmMcBzCa0fPTRhcMVqzk9J5NDAwLkiDrwGNQCAYeNJKF6MR5TgIVdZzf6X2SBgQbNJGF6sN5TgIVdJzm6H2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2SBwQbNJGG6sN5TgQVdJzm6X2b')
-        audio.play().catch(() => {})
-      }
+      playNotificationSound()
     }
   }, [state.currentSession.timeLeft, state.currentSession.type, state.currentSession.isRunning, state.settings.soundEnabled])
 
@@ -452,7 +516,8 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       pauseSession,
       resumeSession,
       stopSession,
-      getNextSessionType
+      getNextSessionType,
+      stopNotificationSound
     }}>
       {children}
     </PomodoroContext.Provider>

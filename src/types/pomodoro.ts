@@ -49,6 +49,8 @@ export interface PomodoroState {
   sessions: PomodoroSession[]
   settings: PomodoroSettings
   stats: PomodoroStats
+  // 音频控制状态
+  isPlayingSound: boolean // 是否正在播放提示音
 }
 
 export type PomodoroAction =
@@ -61,3 +63,5 @@ export type PomodoroAction =
   | { type: 'UPDATE_SETTINGS'; payload: Partial<PomodoroSettings> }
   | { type: 'LOAD_FROM_STORAGE'; payload: { sessions: PomodoroSession[]; settings: PomodoroSettings } }
   | { type: 'CORRECT_TIME'; payload: { correctedTimeLeft: number } }
+  | { type: 'START_SOUND' }
+  | { type: 'STOP_SOUND' }
